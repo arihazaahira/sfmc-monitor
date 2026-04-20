@@ -1,0 +1,27 @@
+# SFMC Dashboard: API Fixes & Detail Drill-down
+
+I've successfully resolved the Contact and Data Extension errors and added a new "Details" view that allows you to see the actual items for each metric.
+
+## Key Changes
+
+### 1. Robust API Endpoints
+- **Contacts**: Switched to the standard `/contacts/v1/contacts/count`. Added multiple fallback methods if the primary one fails.
+- **Data Extensions**: Updated to try `/data/v1/customobjects` safely and added a robust fallback to the **Asset API**.
+
+### 2. New Detail Drill-down Feature
+- You can now **click on any metric card** to see a list of the top 20 items in that category.
+- **Contacts**: Shows the Contact Schema/Attributes being tracked.
+- **Data Extensions**: Shows specific DE names and whether they are sendable.
+- **Automations**: Shows the list of automations and their current status.
+- **SMS/Email**: Shows the list of transactional definitions and their status.
+
+## How to Test
+
+1. **Reload the Extension**: Go to `chrome://extensions` and click the refresh icon on the SFMC Dashboard.
+2. **Open Dashboard**: You should see "Total Contacts" and "Data Extensions" working correctly now.
+3. **Click a Card**: Click on "Data Extensions" or "Automations" to see the list of items.
+4. **Go Back**: Use the arrow button at the top left of the list to return to the main dashboard.
+
+## Technical Improvements
+- **Promise.allSettled**: The dashboard no longer crashes if a single API call fails. It will show data for what works and a dash (—) for what doesn't.
+- **Stale-while-revalidate**: The UI feels instant by showing cached data first while refreshing in the background.

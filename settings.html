@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFMC Dashboard — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:             #F8FAFC;
+      --bg-surface:     #FFFFFF;
+      --bg-card:        #FFFFFF;
+      --bg-input:       #F8FAFC;
+      --border:         #F1F5F9;
+      --border-dark:    #E2E8F0;
+      --accent:         #6366F1;
+      --accent-hover:   #4F46E5;
+      --accent-soft:    #F5F3FF;
+      --accent-mid:     #DDD6FE;
+      --success:        #10B981;
+      --danger:         #EF4444;
+      --warning:        #F59E0B;
+      --text-primary:   #0F172A;
+      --text-secondary: #475569;
+      --text-muted:     #94A3B8;
+      --radius-lg:      20px;
+      --radius:         16px;
+      --radius-sm:      12px;
+      --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --max-w:          640px;
+      --shadow-sm:      0 1px 2px rgba(0,0,0,0.02);
+      --shadow-md:      0 4px 12px rgba(0,0,0,0.03);
+      --shadow-lg:      0 20px 25px -5px rgba(0,0,0,0.05);
+    }
+
+    html { font-size: 15px; }
+
+    body {
+      font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 80px;
+    }
+
+    /* ─── Top nav bar ─────────────────────────────────────────────────────── */
+    .topbar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-dark);
+      padding: 0 48px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .topbar-logo {
+      width: 44px;
+      height: 44px;
+      background: var(--accent);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      box-shadow: 0 8px 16px rgba(99,102,241,0.2);
+      color: white;
+    }
+
+    .topbar-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+    }
+
+    .topbar-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      border-radius: 30px;
+      background: #FFFFFF;
+      border: 1.5px solid var(--border-dark);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+
+    .conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .conn-status.ok   { border-color: #DCFCE7; color: #166534; background: #F0FDF4; }
+    .conn-status.ok   .conn-dot { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+    .conn-status.err  { border-color: #FEE2E2; color: #991B1B; background: #FEF2F2; }
+    .conn-status.err  .conn-dot { background: var(--danger); }
+
+    /* ─── Page container ─────────────────────────────────────────────────── */
+    .page {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 64px 24px;
+    }
+
+    /* ─── Section heading ────────────────────────────────────────────────── */
+    .section-head {
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .section-head h2 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.05em;
+      line-height: 1.1;
+    }
+
+    .section-head p {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-top: 12px;
+      line-height: 1.6;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ─── Cards ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition);
+    }
+
+    .card:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .card-title-icon {
+      font-size: 24px;
+    }
+
+    /* ─── Form ───────────────────────────────────────────────────────────── */
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      letter-spacing: 0.01em;
+    }
+
+    label span.required { color: var(--danger); margin-left: 2px; }
+
+    .field-wrap {
+      position: relative;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: all var(--transition);
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--accent);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 5px rgba(99,102,241,0.08);
+    }
+
+    input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    .toggle-secret {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      transition: color var(--transition);
+      border-radius: 8px;
+    }
+
+    .toggle-secret:hover { color: var(--accent); background: var(--accent-soft); }
+
+    .field-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+
+    .field-hint strong { color: var(--text-secondary); }
+
+    .field-hint a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .field-hint a:hover { text-decoration: underline; }
+
+    /* ── Subdomain preview ─────────────────────────────────────────────────── */
+    .subdomain-preview {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      font-family: inherit;
+      background: var(--bg-sidebar);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .subdomain-preview.active { color: var(--accent); font-weight: 600; }
+
+    /* ─── Action row ─────────────────────────────────────────────────────── */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .btn-save {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 32px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+    }
+
+    .btn-save:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(99,102,241,0.3);
+    }
+
+    .btn-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-test {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: #FFFFFF;
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .btn-test:hover:not(:disabled) {
+      background: #F8FAFC;
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .btn-clear {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: transparent;
+      border: 1.5px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--danger);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+      margin-left: auto;
+    }
+
+    .btn-clear:hover { background: #FEF2F2; border-color: #FEE2E2; }
+
+    /* ─── Toast notification ─────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #0F172A;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #toast.success { background: var(--success); }
+    #toast.error   { background: var(--danger); }
+    #toast.info    { background: var(--accent); }
+
+    /* ─── Info callout ───────────────────────────────────────────────────── */
+    .callout {
+      background: var(--bg-sidebar);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius);
+      padding: 24px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .callout strong { color: var(--text-primary); font-weight: 800; }
+
+    .callout ol, .callout ul {
+      padding-left: 20px;
+      margin-top: 14px;
+    }
+
+    .callout li { margin-bottom: 10px; }
+
+    /* ─── Divider ────────────────────────────────────────────────────────── */
+    .divider {
+      height: 1.5px;
+      background: var(--border-dark);
+      margin: 32px 0;
+    }
+
+    /* ─── Spinner ────────────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.8s linear infinite; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">☁️</div>
+      <div>
+        <div class="topbar-title">SFMC Dashboard</div>
+        <div class="topbar-sub">Extension Settings</div>
+      </div>
+    </div>
+    <div class="conn-status" id="connStatus">
+      <div class="conn-dot" id="connDot"></div>
+      <span id="connText">Not connected</span>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <!-- Page head -->
+    <div class="section-head">
+      <h2>Connect to Salesforce Marketing Cloud</h2>
+      <p>
+        Enter the credentials from your SFMC Installed Package. These are stored locally in your
+        browser and never sent anywhere except directly to Salesforce APIs.
+      </p>
+    </div>
+
+    <!-- Credentials card -->
+    <div class="card">
+      <div class="card-title">
+        <span class="card-title-icon">🔐</span>
+        Installed Package Credentials
+      </div>
+
+      <form id="settingsForm" novalidate autocomplete="off">
+
+        <!-- Subdomain -->
+        <div class="form-group">
+          <label for="subdomain">Subdomain <span class="required">*</span></label>
+          <div class="field-wrap">
+            <input
+              type="text"
+              id="subdomain"
+              name="subdomain"
+              placeholder="mc123abc"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+          <div class="subdomain-preview" id="subdomainPreview">
+            Your REST endpoint will be: <em>https://&lt;subdomain&gt;.rest.marketingcloudapis.com</em>
+          </div>
+        </div>
+
+        <!-- Client ID -->
+        <div class="form-group">
+          <label for="clientId">Client ID <span class="required">*</span></label>
+          <div class="field-wrap">
+            <input
+              type="text"
+              id="clientId"
+              name="clientId"
+              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+          <p class="field-hint">Found in your Installed Package under <strong>Components → API Integration</strong>.</p>
+        </div>
+
+        <!-- Client Secret -->
+        <div class="form-group">
+          <label for="clientSecret">Client Secret <span class="required">*</span></label>
+          <div class="field-wrap">
+            <input
+              type="password"
+              id="clientSecret"
+              name="clientSecret"
+              placeholder="••••••••••••••••••••••••••••••••"
+              autocomplete="new-password"
+            />
+            <button
+              type="button"
+              class="toggle-secret"
+              id="toggleSecret"
+              title="Show / hide secret"
+              aria-label="Toggle secret visibility"
+            >
+              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <p class="field-hint">
+            Stored encrypted locally via <code>chrome.storage.local</code>. Never logged or transmitted externally.
+          </p>
+        </div>
+
+        <!-- Actions -->
+        <div class="action-row">
+          <button type="submit" class="btn-save" id="btnSave">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Save Credentials
+          </button>
+
+          <button type="button" class="btn-test" id="btnTest" disabled>
+            <svg id="testIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            Test Connection
+          </button>
+
+          <button type="button" class="btn-clear" id="btnClear">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4h6v2"/>
+            </svg>
+            Clear All
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- How to get credentials -->
+    <div class="card">
+      <div class="card-title">
+        <span class="card-title-icon">📖</span>
+        How to Get Your Credentials
+      </div>
+      <div class="callout">
+        <strong>Create an Installed Package in SFMC:</strong>
+        <ol>
+          <li>Log in to <strong>Salesforce Marketing Cloud</strong>.</li>
+          <li>Go to <code>Setup → Apps → Installed Packages</code>.</li>
+          <li>Click <strong>New</strong>, give it a name (e.g. <code>SFMC Dashboard</code>), then <strong>Save</strong>.</li>
+          <li>Click <strong>Add Component → API Integration</strong>.</li>
+          <li>Choose <strong>Server-to-Server</strong> (no user context needed).</li>
+          <li>Grant these scopes: <code>contacts_read</code>, <code>data_extensions_read</code>, <code>automations_read</code>.</li>
+          <li>Save. You'll see your <strong>Client Id</strong>, <strong>Client Secret</strong>, and <strong>MID</strong>.</li>
+          <li>Your <strong>Subdomain</strong> is the unique prefix in your tenant's auth URL:
+            <br/><code>https://<strong>mc123abc</strong>.auth.marketingcloudapis.com</code></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Security note -->
+    <div class="card">
+      <div class="card-title">
+        <span class="card-title-icon">🛡️</span>
+        Security Notes
+      </div>
+      <div class="callout">
+        <ul>
+          <li>Credentials are stored <strong>only</strong> in <code>chrome.storage.local</code> on this device.</li>
+          <li>The <strong>client_secret</strong> is never displayed in the UI after being saved.</li>
+          <li>Access tokens are cached in memory and auto-refreshed before they expire.</li>
+          <li>No data is sent to any third-party server — all requests go directly to <code>*.marketingcloudapis.com</code>.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <!-- Toast -->
+  <div id="toast" role="alert" aria-live="polite"></div>
+
+  <script src="settings.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFMC Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #F8FAFC;
+      --bg-surface:    #FFFFFF;
+      --bg-card:       #FFFFFF;
+      --bg-card-hover: #F8FAFC;
+      --border:        #F1F5F9;
+      --accent:        #6366F1;
+      --accent-soft:   #F5F3FF;
+      --accent-mid:    #DDD6FE;
+      --success:       #10B981;
+      --warning:       #F59E0B;
+      --danger:        #EF4444;
+      --text-primary:  #0F172A;
+      --text-secondary:#475569;
+      --text-muted:    #94A3B8;
+      --radius:        16px;
+      --radius-sm:     12px;
+      --shadow-card:   0 1px 3px rgba(0,0,0,0.02);
+      --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      width: 380px;
+      min-height: 600px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────────────── */
+    .popup-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+      position: relative;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────────────── */
+    .header {
+      padding: 18px 20px 14px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .header-text h1 { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
+    .header-text p { font-size: 0.7rem; color: var(--text-secondary); font-weight: 400; margin-top: 1px; }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-icon { width: 32px; height: 32px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; transition: all var(--transition); text-decoration: none; }
+    .btn-icon:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--border); }
+    .btn-icon svg { pointer-events: none; }
+
+    /* ─── Status bar ─────────────────────────────────────────────────── */
+    .status-bar { padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .status-indicator { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-muted); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); transition: background var(--transition); }
+    .status-dot.live { background: var(--success); box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+    .status-dot.error { background: var(--danger); }
+    .status-dot.loading { background: var(--warning); animation: pulse 1s infinite; }
+    .last-updated { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* ─── Main Content ───────────────────────────────────────────────── */
+    .main-content { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+    /* ─── KPI Cards ──────────────────────────────────────────────────── */
+    .kpi-cards { display: flex; flex-direction: column; gap: 10px; }
+    .kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; display: flex; align-items: center; gap: 14px; transition: all var(--transition); position: relative; overflow: hidden; cursor: pointer; box-shadow: var(--shadow-card); }
+    .kpi-card:hover { background: var(--bg-card-hover); border-color: #D1D5DB; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+
+    .kpi-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform var(--transition); }
+    .kpi-card:hover .kpi-icon { transform: scale(1.05) rotate(-2deg); }
+
+    .kpi-card.contacts .kpi-icon { background: #EFF6FF; color: #2563EB; }
+    .kpi-card.data-ext .kpi-icon { background: #F3E8FF; color: #9333EA; }
+    .kpi-card.automations .kpi-icon { background: #ECFDF5; color: #059669; }
+    .kpi-card.sms .kpi-icon { background: #FFF7ED; color: #D97706; }
+    .kpi-card.email .kpi-icon { background: #FCE7F3; color: #DB2777; }
+    .kpi-card.journeys .kpi-icon { background: #EEF2FF; color: #4F46E5; }
+    .kpi-card.users .kpi-icon { background: #E0F2FE; color: #0EA5E9; }
+
+    .kpi-body { flex: 1; min-width: 0; }
+    .kpi-label { font-size: 0.72rem; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .kpi-value { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; transition: all var(--transition); }
+    .kpi-sublabel { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Skeleton loading */
+    .kpi-value.skeleton { background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; color: transparent; width: 80px; height: 1.65rem; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .btn-refresh { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all var(--transition); margin-top: auto; box-shadow: var(--shadow-card); }
+    .btn-refresh:hover:not(:disabled) { background: #F8F9FA; border-color: #D1D5DB; }
+    .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+    .btn-refresh svg.spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-banner { display: none; background: #FEF2F2; border: 1px solid #FECACA; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 0.78rem; color: #B91C1C; line-height: 1.5; }
+    .error-banner.visible { display: block; }
+
+    .details-panel { position: absolute; top: 0; left: 100%; width: 100%; height: 100%; background: var(--bg); z-index: 100; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
+    .details-panel.visible { transform: translateX(-100%); }
+    .details-header { padding: 16px 20px 10px; border-bottom: 1px solid var(--border); background: var(--bg-card); display: flex; align-items: center; gap: 12px; }
+    .btn-back { width: 32px; height: 32px; border-radius: var(--radius-sm); background: transparent; border: 1px solid transparent; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all var(--transition); }
+    .btn-back:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .details-title h2 { font-size: 0.95rem; font-weight: 600; }
+
+    .details-tabs { display: none; padding: 10px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); gap: 8px; }
+    .details-tabs.visible { display: flex; }
+    .tab-btn { padding: 6px 14px; background: transparent; border: 1px solid transparent; border-radius: 20px; color: var(--text-secondary); font-size: 0.72rem; font-weight: 500; cursor: pointer; transition: all var(--transition); }
+    .tab-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--border); }
+    .tab-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: transparent; }
+
+    .details-list { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .detail-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.2s ease-out forwards; opacity: 0; cursor: pointer; box-shadow: var(--shadow-card); }
+    .detail-item:hover { border-color: #D1D5DB; background: var(--bg-card-hover); }
+    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── Item Detail Panel ─────────────────────────────────────────── */
+    .item-details-panel { position: absolute; top: 0; left: 100%; width: 100%; height: 100%; background: var(--bg); z-index: 110; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
+    .item-details-panel.visible { transform: translateX(-100%); }
+    .item-details-content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+    .detail-group { display: flex; flex-direction: column; gap: 6px; }
+    .detail-label-sub { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .detail-value-sub { font-size: 0.9rem; font-weight: 400; color: var(--text-primary); padding: 10px 12px; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-sm); word-break: break-all; }
+    .recurrence-box { background: var(--accent-soft); border: 1px solid var(--accent-mid); border-radius: var(--radius-sm); padding: 12px; font-family: monospace; font-size: 0.75rem; color: var(--accent); line-height: 1.5; }
+
+    /* ─── Search Bar ─────────────────────────────────────────────────── */
+    .details-search-container {
+      padding: 12px 16px 8px;
+      position: relative;
+      background: var(--bg-card);
+    }
+
+    .search-input {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px 10px 36px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      transition: all var(--transition);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      margin-top: 2px;
+    }
+
+    .detail-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .detail-name { font-size: 0.82rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+    .detail-key { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .detail-meta { font-size: 0.72rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: #F8F9FA; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
+
+    /* Journey specific styles */
+    .status-badge { font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
+    .status-badge.active { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+    .status-badge.draft { background: #FFF7ED; color: #D97706; border: 1px solid #FFEDD5; }
+    .status-badge.stopped { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+    .status-badge.published { background: #EFF6FF; color: #2563EB; border: 1px solid #DBEAFE; }
+
+    .version-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .version-pill { font-size: 0.7rem; font-weight: 600; padding: 5px 12px; border-radius: 20px; background: #FFFFFF; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all var(--transition); box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .version-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
+    .version-pill.active { background: var(--accent); color: #FFFFFF; border-color: var(--accent); box-shadow: 0 4px 10px rgba(37,99,235,0.25); }
+
+    .timeline { display: flex; flex-direction: column; gap: 0; position: relative; padding-left: 24px; margin-top: 10px; }
+    .timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(180deg, var(--accent-mid), transparent); }
+    .timeline-item { position: relative; padding-bottom: 20px; font-size: 0.8rem; }
+    .timeline-item::after { content: ''; position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2.5px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-time { display: block; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 2px; }
+    .timeline-content { color: var(--text-secondary); line-height: 1.4; }
+
+    .entry-badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; background: #F8F9FA; border: 1px solid var(--border); border-radius: 10px; font-weight: 500; color: var(--text-primary); transition: all var(--transition); }
+    .entry-badge:hover { background: #FFFFFF; border-color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+    .stat-card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; transition: all var(--transition); }
+    .stat-card:hover { border-color: var(--accent-mid); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .stat-label { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+    .stat-trend { font-size: 0.65rem; font-weight: 600; color: var(--success); }
+
+    .type-badge { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; padding: 2px 6px; background: #F3F4F6; border-radius: 4px; border: 1px solid var(--border); }
+
+    /* ─── Not-Configured Screen ──────────────────────────────────────── */
+    .not-configured { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; gap: 14px; flex: 1; }
+    .not-configured.visible { display: flex; }
+    .nc-icon { width: 56px; height: 56px; background: var(--accent-soft); border: 1px solid var(--accent-mid); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+    .nc-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+    .btn-primary { display: inline-flex; align-items: center; gap: 7px; padding: 10px 20px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: white; font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all var(--transition); text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .btn-primary:hover { background: #1D4ED8; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+    .footer { padding: 10px 20px; border-top: 1px solid var(--border); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+    .footer-text { font-size: 0.66rem; color: var(--text-muted); }
+    .cache-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; background: #F8F9FA; border: 1px solid var(--border); color: var(--text-muted); opacity: 0; transition: opacity var(--transition); }
+    .cache-badge.visible { opacity: 1; }
+    .cache-badge.live { border-color: #A7F3D0; color: #059669; background: #ECFDF5; }
+  </style>
+</head>
+<body>
+  <div class="popup-wrapper">
+    <header class="header">
+      <div class="header-brand">
+        <div class="header-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.5 19A3.5 3.5 0 0 0 21 15.5c0-1.93-1.57-3.5-3.5-3.5-.1 0-.2 0-.3.01A5.5 5.5 0 0 0 11.5 7c-2.5 0-4.64 1.67-5.32 4.01A4.5 4.5 0 0 0 6.5 20h11"></path>
+          </svg>
+        </div>
+        <div class="header-text">
+          <h1>SFMC Dashboard</h1>
+          <p>Marketing Cloud Metrics</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="btnLaunchDashboard" title="Open Full Dashboard">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </button>
+        <button class="btn-icon" id="btnRefreshHeader" title="Refresh metrics">
+          <svg id="refreshIconHeader" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+        </button>
+        <a class="btn-icon" id="btnSettings" href="#" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting…</span>
+      </div>
+      <span class="last-updated" id="lastUpdated"></span>
+    </div>
+
+    <main class="main-content" id="dashboardContent">
+      <div class="error-banner" id="errorBanner">
+        <strong id="errorTitle">Error</strong>
+        <span id="errorMsg"></span>
+      </div>
+      <div class="kpi-cards">
+        <div class="kpi-card contacts" id="cardContacts">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Total Contacts</div>
+            <div class="kpi-value skeleton" id="valContacts">—</div>
+            <div class="kpi-sublabel">Across all business units</div>
+          </div>
+        </div>
+        <div class="kpi-card data-ext" id="cardDataExt">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Data Extensions</div>
+            <div class="kpi-value skeleton" id="valDataExt">—</div>
+            <div class="kpi-sublabel">Custom objects</div>
+          </div>
+        </div>
+        <div class="kpi-card automations" id="cardAutomations">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Automations</div>
+            <div class="kpi-value skeleton" id="valAutomations">—</div>
+            <div class="kpi-sublabel">Scheduled &amp; trigger-based</div>
+          </div>
+        </div>
+        <div class="kpi-card sms" id="cardSms">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Transactional SMS</div>
+            <div class="kpi-value skeleton" id="valSms">—</div>
+            <div class="kpi-sublabel">Send definitions</div>
+          </div>
+        </div>
+        <div class="kpi-card email" id="cardEmail">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Transactional Email</div>
+            <div class="kpi-value skeleton" id="valEmail">—</div>
+            <div class="kpi-sublabel">Send definitions</div>
+          </div>
+        </div>
+        <div class="kpi-card journeys" id="cardJourneys">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path><path d="M3 12h12"></path><circle cx="18" cy="12" r="3"></circle></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Journeys</div>
+            <div class="kpi-value skeleton" id="valJourneys">—</div>
+            <div class="kpi-sublabel">Marketing automation flows</div>
+          </div>
+        </div>
+        <div class="kpi-card users" id="cardUsers">
+          <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-label">Account Users</div>
+            <div class="kpi-value skeleton" id="valUsers">—</div>
+            <div class="kpi-sublabel">SFMC active users</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-refresh" id="btnRefresh" disabled>
+        <svg id="refreshIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Refresh Metrics
+      </button>
+    </main>
+
+    <div class="details-panel" id="detailsPanel">
+      <div class="details-header">
+        <button class="btn-back" id="btnBack" title="Back to dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <div class="details-title">
+          <h2 id="detailsTitle">Metric Details</h2>
+        </div>
+      </div>
+      
+      <div class="details-search-container" id="detailsSearchContainer">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search by name or key...">
+      </div>
+
+      <div class="details-tabs" id="detailsTabs">
+        <button class="tab-btn active" data-tab="all">All</button>
+        <button class="tab-btn" data-tab="ready">Ready</button>
+        <button class="tab-btn" data-tab="scheduled">Scheduled</button>
+        <button class="tab-btn" data-tab="triggered">Triggered</button>
+        <button class="tab-btn" data-tab="error">Error</button>
+      </div>
+      <div class="details-list" id="detailsList"></div>
+    </div>
+
+    <div class="item-details-panel" id="itemDetailsPanel">
+      <div class="details-header">
+        <button class="btn-back" id="btnBackToItems" title="Back to list">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <div class="details-title">
+          <h2>Automation Detail</h2>
+        </div>
+      </div>
+      <div class="item-details-content" id="itemDetailsContent"></div>
+    </div>
+
+    <div class="not-configured" id="notConfigured">
+      <div class="nc-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <p class="nc-title">Setup Required</p>
+      <a class="btn-primary" id="btnGoSettings" href="#">Open Settings</a>
+    </div>
+
+    <footer class="footer">
+      <span class="footer-text">SFMC Dashboard v1.3</span>
+      <span class="cache-badge" id="cacheBadge">cached</span>
+    </footer>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
