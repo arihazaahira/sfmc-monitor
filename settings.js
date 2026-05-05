@@ -26,6 +26,11 @@ const connDot       = document.getElementById('connDot');
 const connText      = document.getElementById('connText');
 const testIcon      = document.getElementById('testIcon');
 
+const fldAiKey      = document.getElementById('anthropicKey');
+const toggleAiKey   = document.getElementById('toggleAiKey');
+const eyeIconAi     = document.getElementById('eyeIconAi');
+const btnSaveAi     = document.getElementById('btnSaveAi');
+
 // ─── Toast ───────────────────────────────────────────────────────────────────
 
 let toastTimer;
@@ -230,6 +235,75 @@ btnClear.addEventListener('click', async () => {
   }
 });
 
+// ─── AI config storage helpers ────────────────────────────────────────────────
+
+async function saveAiConfig(apiKey) {
+  return chrome.storage.local.set({ sfmc_ai_config: { anthropicApiKey: apiKey } });
+}
+
+async function getAiConfig() {
+  const result = await chrome.storage.local.get('sfmc_ai_config');
+  return result.sfmc_ai_config || null;
+}
+
+// ─── AI key toggle visibility ─────────────────────────────────────────────────
+
+let aiKeyVisible = false;
+toggleAiKey.addEventListener('click', () => {
+  aiKeyVisible = !aiKeyVisible;
+  fldAiKey.type = aiKeyVisible ? 'text' : 'password';
+  eyeIconAi.innerHTML = aiKeyVisible
+    ? `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+       <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+       <line x1="1" y1="1" x2="23" y2="23"/>`
+    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+       <circle cx="12" cy="12" r="3"/>`;
+});
+
+// ─── Load AI config on page open ──────────────────────────────────────────────
+
+async function loadAiConfig() {
+  const config = await getAiConfig();
+  if (config?.anthropicApiKey) {
+    fldAiKey.placeholder = 'sk-ant-••••••••  (saved — enter new value to change)';
+  }
+}
+
+// ─── Save AI key ──────────────────────────────────────────────────────────────
+
+btnSaveAi.addEventListener('click', async () => {
+  const keyVal = fldAiKey.value.trim();
+
+  if (!keyVal) {
+    const existing = await getAiConfig();
+    if (!existing?.anthropicApiKey) {
+      showToast('⚠️ Please enter an Anthropic API key.', 'error');
+    } else {
+      showToast('ℹ️ No change — existing key kept.', 'info');
+    }
+    return;
+  }
+
+  // Anthropic API keys start with "sk-ant-" and are at least 40 chars
+  if (!keyVal.startsWith('sk-ant-') || keyVal.length < 40) {
+    showToast('⚠️ Invalid key format. Anthropic keys start with sk-ant-', 'error');
+    return;
+  }
+
+  btnSaveAi.disabled = true;
+  try {
+    await saveAiConfig(keyVal);
+    showToast('✅ Anthropic API key saved.', 'success');
+    fldAiKey.value = '';
+    fldAiKey.placeholder = 'sk-ant-••••••••  (saved — enter new value to change)';
+  } catch (err) {
+    showToast(`❌ Save failed: ${err.message}`, 'error');
+  } finally {
+    btnSaveAi.disabled = false;
+  }
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 loadSavedCredentials();
+loadAiConfig();

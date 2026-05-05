@@ -22,12 +22,24 @@ function formatNumber(n) {
   return Number(n).toLocaleString();
 }
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ─── State ──────────────────────────────────────────────────────────────────
 
 let currentCategory = 'journeys';
 let currentItemId = null;
 let allItems = [];
 let filteredItems = [];
+let aiMessages = [];
+let lastCategoryItems = [];
 
 // ─── DOM Refs ───────────────────────────────────────────────────────────────
 
@@ -117,14 +129,22 @@ async function switchCategory(cat) {
   newUrl.searchParams.delete('id');
   window.history.pushState({}, '', newUrl);
 
+  // Preserve loaded items for AI context before clearing
+  if (allItems.length > 0) lastCategoryItems = allItems;
+
   // Clear stale data to prevent mixing
   allItems = [];
+
+  // Toggle AI layout mode on the list section
+  document.querySelector('.list-section').classList.toggle('ai-mode', cat === 'ai');
 
   // Load
   if (cat === 'limits') {
     await renderLimitsDashboard();
   } else if (cat === 'data-ext') {
     await renderDataExtensionsOverview();
+  } else if (cat === 'ai') {
+    renderAIView();
   } else {
     await loadCategoryData(cat);
   }
@@ -253,11 +273,14 @@ function renderDEListSearch(query) {
     filtered.forEach(item => {
         const tr = document.createElement('tr');
         tr.className = 'table-row';
+        const eName   = escapeHtml(item.name);
+        const eKey    = escapeHtml(item.key);
+        const eCatId  = escapeHtml(item.categoryId || '0');
         tr.innerHTML = `
-            <td class="col-name" title="${item.name}">${item.name}</td>
-            <td class="col-key" title="${item.key}">${item.key}</td>
-            <td><span class="badge">${item.categoryId || '0'}</span></td>
-            ${filterType === 'empty' ? `<td><button class="btn-danger btn-delete-de" data-key="${item.key}">Supprimer</button></td>` : ''}
+            <td class="col-name" title="${eName}">${eName}</td>
+            <td class="col-key" title="${eKey}">${eKey}</td>
+            <td><span class="badge">${eCatId}</span></td>
+            ${filterType === 'empty' ? `<td><button class="btn-danger btn-delete-de" data-key="${eKey}">Supprimer</button></td>` : ''}
         `;
         tr.onclick = (e) => {
             if (e.target.classList.contains('btn-delete-de')) {
@@ -304,10 +327,13 @@ function renderList(items) {
       displayMeta = am[numMeta] || item.meta;
     }
 
+    const eName = escapeHtml(item.name || 'Unnamed');
+    const eKey  = escapeHtml(item.key);
+    const eMeta = escapeHtml(displayMeta);
     tr.innerHTML = `
-      <td class="col-name" title="${item.name || 'Unnamed'}">${item.name || 'Unnamed'}</td>
-      <td class="col-key" title="${item.key}">${item.key}</td>
-      <td><span class="badge">${displayMeta}</span></td>
+      <td class="col-name" title="${eName}">${eName}</td>
+      <td class="col-key" title="${eKey}">${eKey}</td>
+      <td><span class="badge">${eMeta}</span></td>
     `;
 
     tr.onclick = () => selectItem(item.id);
@@ -376,12 +402,14 @@ function renderJourneyDetail(data, history, versions) {
     else if (type.includes('sms')) icon = SVG_SMS;
     else if (type.includes('wait')) icon = SVG_WAIT;
     else if (type.includes('split')) icon = SVG_SPLIT;
+    const aLabel = escapeHtml(a.name || a.type);
+    const aType  = escapeHtml(a.type);
     return `
       <div class="canvas-activity">
         <div class="canvas-activity-icon">${icon}</div>
         <div class="canvas-activity-info">
-          <div class="canvas-activity-name" title="${a.name || a.type}">${a.name || a.type}</div>
-          <div class="canvas-activity-type">${a.type}</div>
+          <div class="canvas-activity-name" title="${aLabel}">${aLabel}</div>
+          <div class="canvas-activity-type">${aType}</div>
         </div>
       </div>
     `;
@@ -389,17 +417,23 @@ function renderJourneyDetail(data, history, versions) {
 
   breadcrumbDetail.textContent = data.name;
 
+  const jName    = escapeHtml(data.name);
+  const jKey     = escapeHtml(data.key);
+  const jVersion = Number(data.version);
+  const jStatus  = escapeHtml(data.status);
+  const jTrigger = escapeHtml(triggerName);
+
   pageDetailContent.innerHTML = `
     <div class="detail-header-bar">
         <button class="btn-back" id="btnBack">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
         </button>
         <div style="flex:1">
-            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${data.name}</h2>
-            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">Version ${data.version} • ${data.key}</div>
+            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${jName}</h2>
+            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">Version ${jVersion} • ${jKey}</div>
         </div>
         <div>
-            <span class="badge-clean ${data.status.toLowerCase() === 'executing' ? 'active' : 'stopped'}">${data.status}</span>
+            <span class="badge-clean ${data.status.toLowerCase() === 'executing' ? 'active' : 'stopped'}">${jStatus}</span>
         </div>
     </div>
 
@@ -419,7 +453,7 @@ function renderJourneyDetail(data, history, versions) {
             </div>
             <div class="detail-card">
               <div class="label-sm">Source d'Entrée</div>
-              <div class="value-lg" style="font-size:1rem">${triggerName}</div>
+              <div class="value-lg" style="font-size:1rem">${jTrigger}</div>
             </div>
         </div>
 
@@ -509,17 +543,25 @@ function renderAutomationDetail(data) {
   const totalRuns12M = ical ? calculateAnnualRuns(ical) : 0;
   const typeStr = data.type || (data.schedule ? 'Scheduled' : 'Triggered');
 
+  const aName    = escapeHtml(data.name);
+  const aKey     = escapeHtml(data.customerKey || data.key);
+  const aId      = escapeHtml(data.id);
+  const aCatId   = escapeHtml(String(data.categoryId || '-'));
+  const aType    = escapeHtml(typeStr);
+  const aCreator = escapeHtml(createdByName);
+  const aIcal    = escapeHtml(ical || 'Une seule fois');
+
   pageDetailContent.innerHTML = `
     <div class="detail-header-bar">
         <button class="btn-back" id="btnBack">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
         </button>
         <div style="flex:1">
-            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${data.name}</h2>
-            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">${data.customerKey || data.key} • ID: ${data.id}</div>
+            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${aName}</h2>
+            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">${aKey} • ID: ${aId}</div>
         </div>
         <div>
-            <span class="badge-clean ${badgeClass}">${statusText}</span>
+            <span class="badge-clean ${badgeClass}">${escapeHtml(statusText)}</span>
         </div>
     </div>
 
@@ -527,23 +569,23 @@ function renderAutomationDetail(data) {
       <div class="detail-grid">
         <div class="detail-card">
           <div class="label-sm">Catégorie / BU</div>
-          <div class="value-lg">${data.categoryId || '-'}</div>
+          <div class="value-lg">${aCatId}</div>
         </div>
         <div class="detail-card">
           <div class="label-sm">Type</div>
-          <div class="value-lg">${typeStr}</div>
+          <div class="value-lg">${aType}</div>
         </div>
         <div class="detail-card">
           <div class="label-sm">Dernière Exécution</div>
-          <div class="value-lg" style="font-size:0.95rem">${lastRunTime}</div>
+          <div class="value-lg" style="font-size:0.95rem">${escapeHtml(lastRunTime)}</div>
         </div>
         <div class="detail-card">
           <div class="label-sm">Date de Création</div>
-          <div class="value-lg">${createdDate}</div>
+          <div class="value-lg">${escapeHtml(createdDate)}</div>
         </div>
         <div class="detail-card">
           <div class="label-sm">Créé par</div>
-          <div class="value-lg">${createdByName}</div>
+          <div class="value-lg">${aCreator}</div>
         </div>
         <div class="detail-card">
           <div class="label-sm">Total Runs 12M (Proj.)</div>
@@ -551,7 +593,7 @@ function renderAutomationDetail(data) {
         </div>
         <div class="detail-card full-width">
           <div class="label-sm">Recurrence (iCal)</div>
-          <div class="value-mono">${ical || 'Une seule fois'}</div>
+          <div class="value-mono">${aIcal}</div>
         </div>
       </div>
     </div>
@@ -567,14 +609,19 @@ function renderUserDetail(item) {
   const isActive = item.active === 'True' || item.active === 'true' || item.active === true;
   const isApi = item.isApi === 'True' || item.isApi === 'true' || item.isApi === true;
 
+  const uName  = escapeHtml(item.name || 'Unnamed User');
+  const uEmail = escapeHtml(item.email);
+  const uCreated   = escapeHtml(item.created);
+  const uLastLogin = escapeHtml(item.lastLogin || 'Never recorded');
+
   pageDetailContent.innerHTML = `
     <div class="detail-header-bar">
         <button class="btn-back" id="btnBack">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
         </button>
         <div style="flex:1">
-            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${item.name || 'Unnamed User'}</h2>
-            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">${item.email}</div>
+            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${uName}</h2>
+            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500">${uEmail}</div>
         </div>
         <div>
             <span class="badge-clean ${isActive ? 'active' : 'stopped'}">${isActive ? 'Active' : 'Inactive'}</span>
@@ -589,11 +636,11 @@ function renderUserDetail(item) {
         </div>
         <div class="detail-card">
             <span class="label-sm">Created Date</span>
-            <div class="value-lg">${item.created}</div>
+            <div class="value-lg">${uCreated}</div>
         </div>
         <div class="detail-card full-width">
             <span class="label-sm">Last Successful Login</span>
-            <div class="value-lg">${item.lastLogin || 'Never recorded'}</div>
+            <div class="value-lg">${uLastLogin}</div>
         </div>
       </div>
     </div>
@@ -840,12 +887,14 @@ function renderFilteredDEList(type) {
     items.forEach(item => {
         const tr = document.createElement('tr');
         tr.className = 'table-row';
-        
+        const eName  = escapeHtml(item.name);
+        const eKey   = escapeHtml(item.key);
+        const eCatId = escapeHtml(item.categoryId || '0');
         tr.innerHTML = `
-            <td class="col-name" title="${item.name}">${item.name}</td>
-            <td class="col-key" title="${item.key}">${item.key}</td>
-            <td><span class="badge">${item.categoryId || '0'}</span></td>
-            ${type === 'empty' ? `<td><button class="btn-danger btn-delete-de" data-key="${item.key}">Supprimer</button></td>` : ''}
+            <td class="col-name" title="${eName}">${eName}</td>
+            <td class="col-key" title="${eKey}">${eKey}</td>
+            <td><span class="badge">${eCatId}</span></td>
+            ${type === 'empty' ? `<td><button class="btn-danger btn-delete-de" data-key="${eKey}">Supprimer</button></td>` : ''}
         `;
 
         tr.onclick = (e) => {
@@ -878,9 +927,9 @@ function renderDataExtensionDetail(item, recordCount) {
                 'Months': 'Mois',
                 'Years': 'Années'
             };
-            const unit = unitTranslation[item.retentionUnit] || item.retentionUnit;
+            const unit = unitTranslation[item.retentionUnit] || escapeHtml(item.retentionUnit);
             const scope = isRowBased ? '(Par enregistrement)' : '(Toute la Data Extension)';
-            retention = `${item.retentionLength} ${unit} <span style="opacity:0.6; font-size:0.8em; margin-left:6px">${scope}</span>`;
+            retention = `${escapeHtml(String(item.retentionLength))} ${unit} <span style="opacity:0.6; font-size:0.8em; margin-left:6px">${scope}</span>`;
         } else if (item.retainUntil && item.retainUntil !== '1/1/0001 12:00:00 AM') {
             retention = `Jusqu'au ${new Date(item.retainUntil).toLocaleDateString()}`;
         }
@@ -888,33 +937,36 @@ function renderDataExtensionDetail(item, recordCount) {
 
     const created = item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '-';
 
+    const deName = escapeHtml(item.name);
+    const deKey  = escapeHtml(item.key);
+
     pageDetailContent.innerHTML = `
       <div class="detail-header-bar">
           <button class="btn-back" id="btnBack">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
           </button>
           <div style="flex:1">
-              <h2 id="detail-title" style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${item.name}</h2>
+              <h2 id="detail-title" style="font-size:1.5rem; font-weight:800; letter-spacing: -0.03em;">${deName}</h2>
           </div>
           <div class="action-bar">
               <button class="btn-action" id="btnShowSchema">Voir le Schéma</button>
               <button class="btn-action btn-primary-sc" id="btnEditRetention">Modifier la Rétention</button>
           </div>
       </div>
-  
+
       <div class="detail-body">
         <div class="detail-grid">
           <div class="detail-card">
             <span class="label-sm">Nom de la Data Extension</span>
-            <span class="value-lg">${item.name}</span>
+            <span class="value-lg">${deName}</span>
           </div>
           <div class="detail-card">
             <span class="label-sm">Clé Externe (Customer Key)</span>
-            <span class="value-mono">${item.key}</span>
+            <span class="value-mono">${deKey}</span>
           </div>
           <div class="detail-card">
             <span class="label-sm">Créé le</span>
-            <span class="value-lg">${created}</span>
+            <span class="value-lg">${escapeHtml(created)}</span>
           </div>
           <div class="detail-card">
             <span class="label-sm">Nombre d'enregistrements</span>
@@ -973,16 +1025,19 @@ async function showSchemaModal(key, name) {
                             else if (type.includes('boolean')) typeClass = 'type-boolean';
                             else if (type.includes('decimal') || type.includes('currency')) typeClass = 'type-decimal';
 
+                            const fName = escapeHtml(f.name);
+                            const fType = escapeHtml(f.type);
+                            const fLen  = f.length ? escapeHtml(f.length) : '';
                             return `
                                 <tr>
                                     <td>
                                         <div style="font-weight:700; color:var(--text-main)">
-                                            ${f.name} ${isReq ? '<span class="required-mark">*</span>' : ''}
+                                            ${fName} ${isReq ? '<span class="required-mark">*</span>' : ''}
                                         </div>
                                     </td>
                                     <td>
                                         <span class="schema-badge ${typeClass}">
-                                            ${f.type}${f.length ? ` (${f.length})` : ''}
+                                            ${fType}${fLen ? ` (${fLen})` : ''}
                                         </span>
                                     </td>
                                     <td style="text-align:center">
@@ -1197,25 +1252,31 @@ function checkRetentionWarnings(items) {
         const iconClass = isCritical ? '' : 'warning';
         const textClass = isCritical ? '' : 'warning';
         const typeText = de.isRowBased ? 'Données' : 'Structure';
-        
+        const daysLeft = Number(de.daysLeft);
+
         return `
-        <div class="notif-item" onclick="selectItem('${de.id}')">
+        <div class="notif-item" data-de-id="${escapeHtml(de.id)}">
             <div class="notif-item-icon ${iconClass}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    ${isCritical 
-                        ? '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>' 
+                    ${isCritical
+                        ? '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>'
                         : '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>'}
                 </svg>
             </div>
             <div class="notif-item-content">
-                <div class="notif-title" title="${de.name}">${de.name}</div>
+                <div class="notif-title" title="${escapeHtml(de.name)}">${escapeHtml(de.name)}</div>
                 <div class="notif-desc ${textClass}">
-                    ${typeText} expire dans <strong>${de.daysLeft} jour${de.daysLeft > 1 ? 's' : ''}</strong>
+                    ${typeText} expire dans <strong>${daysLeft} jour${daysLeft > 1 ? 's' : ''}</strong>
                 </div>
             </div>
         </div>
         `;
     }).join('');
+
+    // Attach click handlers via event delegation instead of inline onclick
+    notifBody.querySelectorAll('.notif-item').forEach(el => {
+        el.addEventListener('click', () => selectItem(el.dataset.deId));
+    });
 }
 
 // ─── Modal System ─────────────────────────────────────────────────────────
@@ -1232,7 +1293,7 @@ function showModal(title, content) {
     modal.innerHTML = `
         <div class="modal-container">
             <div class="modal-header">
-                <h3>${title}</h3>
+                <h3>${escapeHtml(title)}</h3>
                 <button class="modal-close" id="btnCloseModal">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -1255,13 +1316,261 @@ function closeModal() {
     if (modal) modal.classList.remove('active');
 }
 
-function showToast(msg) {
+function showToast(msg, duration = 3000) {
     const toast = $('toast');
     if (toast) {
         toast.textContent = msg;
         toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
+        setTimeout(() => toast.classList.remove('show'), duration);
     }
+}
+
+// ─── AI Chat View ────────────────────────────────────────────────────────────
+
+function renderAIView() {
+  pageTabs.innerHTML = '';
+  breadcrumbDetail.textContent = 'Assistant';
+  viewTitle.textContent = 'AI Assistant';
+
+  const historyHTML = aiMessages.length > 0
+    ? aiMessages.map(m => buildAIMessageHTML(m.role, m.content)).join('')
+    : buildAIWelcomeHTML();
+
+  pageListContainer.innerHTML = `
+    <div class="ai-view">
+      <div class="ai-messages" id="aiMessages">${historyHTML}</div>
+      <div class="ai-input-row">
+        <textarea class="ai-textarea" id="aiInput" placeholder="Ask anything about your SFMC instance… (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+        <button class="ai-send-btn" id="aiSendBtn" title="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Scroll to bottom if resuming a conversation
+  if (aiMessages.length > 0) {
+    const msgs = $('aiMessages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  // Suggestion pill handlers
+  pageListContainer.querySelectorAll('.ai-suggestion-btn').forEach(btn => {
+    btn.onclick = () => {
+      $('aiInput').value = btn.dataset.q;
+      submitAIQuestion();
+    };
+  });
+
+  // Auto-grow textarea
+  const textarea = $('aiInput');
+  textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  });
+
+  // Enter to send
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitAIQuestion();
+    }
+  });
+
+  $('aiSendBtn').onclick = submitAIQuestion;
+  textarea.focus();
+}
+
+function buildAIWelcomeHTML() {
+  return `
+    <div class="ai-welcome">
+      <div class="ai-welcome-icon">✨</div>
+      <h3>SFMC AI Assistant</h3>
+      <p>Ask questions about your instance in natural language.<br>
+         For best results, open the relevant tab first so the AI can see the full item list.</p>
+      <div class="ai-suggestions">
+        <button class="ai-suggestion-btn" data-q="Donne-moi un résumé complet de cette instance SFMC : contacts, DEs, automations, journeys, utilisateurs. Signale tout ce qui semble anormal.">Résumé complet</button>
+        <button class="ai-suggestion-btn" data-q="Quelles automations sont en erreur ? Liste leurs noms et donne le nombre total.">Automations en erreur</button>
+        <button class="ai-suggestion-btn" data-q="Quelles Data Extensions ont une rétention active et lesquelles expirent dans les 30 prochains jours ?">DEs qui expirent bientôt</button>
+        <button class="ai-suggestion-btn" data-q="Liste tous les utilisateurs API et tous les utilisateurs inactifs (sans connexion récente).">Utilisateurs API &amp; inactifs</button>
+        <button class="ai-suggestion-btn" data-q="Quel est l'état des journeys ? Combien sont actifs (Executing), en brouillon, arrêtés ou en pause ?">État des journeys</button>
+        <button class="ai-suggestion-btn" data-q="Analyse la santé de cette instance SFMC : y a-t-il des problèmes visibles sur les automations, les DEs ou les journeys ?">Analyse de santé</button>
+      </div>
+    </div>
+  `;
+}
+
+function buildAIMessageHTML(role, content, isThinking = false) {
+  const avatarEmoji = role === 'user' ? '👤' : '✨';
+  const bubbleContent = isThinking
+    ? `<div class="ai-thinking-dots"><span></span><span></span><span></span></div>`
+    : renderMarkdown(content);
+  return `
+    <div class="ai-message-row ${role}">
+      <div class="ai-avatar ${role}">${avatarEmoji}</div>
+      <div class="ai-bubble ${role}">${bubbleContent}</div>
+    </div>
+  `;
+}
+
+async function submitAIQuestion() {
+  const input = $('aiInput');
+  const question = input.value.trim();
+  if (!question) return;
+
+  const sendBtn = $('aiSendBtn');
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  const messagesEl = $('aiMessages');
+  if (!messagesEl) return;
+
+  // Fix 1: Guard — ensure SFMC metrics are loaded before calling AI
+  const cached = await chrome.storage.local.get('sfmc_metrics_cache');
+  if (!cached.sfmc_metrics_cache?.data) {
+    try {
+      await sendMsg('FETCH_ALL_METRICS');
+    } catch {
+      const welcome = messagesEl.querySelector('.ai-welcome');
+      if (welcome) welcome.remove();
+      messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('assistant',
+        'Load your SFMC data first by visiting any category.'));
+      sendBtn.disabled = false;
+      input.value = question;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return;
+    }
+  }
+
+  // Fix 3: Consent banner — shown once per install
+  const consentData = await chrome.storage.local.get('sfmc_ai_consent_shown');
+  if (!consentData.sfmc_ai_consent_shown) {
+    showToast(
+      'Your SFMC data (names, counts) is sent to Anthropic to generate this response. No data is stored between sessions.',
+      6000
+    );
+    await chrome.storage.local.set({ sfmc_ai_consent_shown: true });
+  }
+
+  // Remove welcome screen on first question
+  const welcome = messagesEl.querySelector('.ai-welcome');
+  if (welcome) welcome.remove();
+
+  // Append user bubble
+  aiMessages.push({ role: 'user', content: question });
+  messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('user', question));
+
+  // Append thinking indicator
+  const thinkingId = 'ai-thinking-' + Date.now();
+  messagesEl.insertAdjacentHTML('beforeend', `
+    <div id="${thinkingId}" class="ai-message-row assistant">
+      <div class="ai-avatar assistant">✨</div>
+      <div class="ai-bubble assistant"><div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>
+    </div>
+  `);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  try {
+    const contextItems = deCategorizedData
+      ? deCategorizedData.all
+      : (allItems.length > 0 ? allItems : lastCategoryItems);
+
+    // Fix 2: Multi-turn — pass last 6 messages (excluding the one just pushed)
+    const history = aiMessages.slice(0, -1).slice(-6);
+
+    const reply = await sendMsg('ASK_AI', {
+      question,
+      history,
+      uiContext: {
+        currentCategory: currentCategory === 'ai' ? null : currentCategory,
+        currentItems: contextItems.slice(0, 200)
+      }
+    });
+
+    document.getElementById(thinkingId)?.remove();
+    aiMessages.push({ role: 'assistant', content: reply });
+    messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('assistant', reply));
+
+  } catch (err) {
+    document.getElementById(thinkingId)?.remove();
+    const errMsg = resolveAIError(err.message);
+    messagesEl.insertAdjacentHTML('beforeend', `
+      <div class="ai-message-row assistant">
+        <div class="ai-avatar assistant">✨</div>
+        <div class="ai-bubble assistant"><span class="ai-error-msg">${errMsg}</span></div>
+      </div>
+    `);
+  } finally {
+    sendBtn.disabled = false;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    input.focus();
+  }
+}
+
+function resolveAIError(code) {
+  if (code === 'AI_NOT_CONFIGURED')  return 'AI API key not configured. Please add your Anthropic API key in Settings.';
+  if (code === 'AI_AUTH_FAILED')     return 'Invalid Anthropic API key. Please check Settings.';
+  if (code === 'AI_RATE_LIMIT')      return 'Rate limit reached. Please wait a moment and try again.';
+  if (code === 'AI_MAX_ITERATIONS')  return 'The question required too many data fetches. Try asking something more specific.';
+  if (code === 'AI_EMPTY_RESPONSE')  return 'No response received from the AI. Please try again.';
+  if (code?.startsWith('AI_NETWORK')) return 'Network error. Check your connection and try again.';
+  return `Error: ${code}`;
+}
+
+function renderMarkdown(text) {
+  // Escape HTML entities
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Fenced code blocks (``` ... ```)
+  html = html.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, code) =>
+    `<pre class="ai-code-block"><code>${code.trim()}</code></pre>`
+  );
+
+  // Inline code
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Italic
+  html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+
+  // Headers → bold lines
+  html = html.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
+
+  // Bullet lists: group consecutive lines starting with "- " or "* "
+  html = html.replace(/((?:^[ \t]*[-*] .+(?:\n|$))+)/gm, (block) => {
+    const items = block.trim().split('\n').map(l =>
+      `<li>${l.replace(/^[ \t]*[-*] /, '').trim()}</li>`
+    ).join('');
+    return `<ul>${items}</ul>`;
+  });
+
+  // Numbered lists
+  html = html.replace(/((?:^\d+\. .+(?:\n|$))+)/gm, (block) => {
+    const items = block.trim().split('\n').map(l =>
+      `<li>${l.replace(/^\d+\. /, '').trim()}</li>`
+    ).join('');
+    return `<ol>${items}</ol>`;
+  });
+
+  // Split into blocks on double newline, wrap non-block elements in <p>
+  const blocks = html.split(/\n\n+/);
+  html = blocks.map(block => {
+    block = block.trim();
+    if (!block) return '';
+    if (/^<(ul|ol|pre|h[1-6])/.test(block)) return block;
+    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+
+  return html || '<p></p>';
 }
 
 // Initialization context

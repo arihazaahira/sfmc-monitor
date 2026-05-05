@@ -26,10 +26,18 @@ import {
 } from './api.js';
 
 import { isConfigured, clearCredentials } from './auth.js';
+import { callAI } from './ai.js';
 
 /** ─── Message handler ─────────────────────────────────────────────────── */
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Reject messages from any context that isn't this extension itself.
+  // Without this guard any web page could trigger API calls or deletions.
+  if (sender.id !== chrome.runtime.id) {
+    sendResponse({ ok: false, error: 'UNAUTHORIZED' });
+    return false;
+  }
+
   handleMessage(message)
     .then((result) => sendResponse({ ok: true, data: result }))
     .catch((error) => sendResponse({ ok: false, error: error.message }));
@@ -98,6 +106,9 @@ async function handleMessage(message) {
     case 'REFRESH_METRICS':
       await clearMetricsCache();
       return fetchAllMetrics(true);
+
+    case 'ASK_AI':
+      return callAI(message.question, message.uiContext || {}, message.history || []);
 
     case 'CLEAR_CREDENTIALS':
       await clearCredentials();

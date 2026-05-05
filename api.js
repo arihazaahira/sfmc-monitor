@@ -5,6 +5,16 @@
 
 import { getAccessToken, forceRefreshToken, getCredentials } from './auth.js';
 
+/** Escape special XML characters to prevent SOAP injection. */
+function escapeXml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 const CACHE_KEY = 'sfmc_metrics_cache';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -577,7 +587,7 @@ export async function fetchDataExtensionFields(customerKey) {
               <Filter xsi:type="SimpleFilterPart" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                 <Property>DataExtension.CustomerKey</Property>
                 <SimpleOperator>equals</SimpleOperator>
-                <Value>${customerKey}</Value>
+                <Value>${escapeXml(customerKey)}</Value>
               </Filter>
             </RetrieveRequest>
           </RetrieveRequestMsg>
@@ -605,7 +615,7 @@ export async function deleteDataExtension(customerKey) {
        <s:Body>
           <DeleteRequest xmlns="http://exacttarget.com/wsdl/partnerAPI">
             <Objects xsi:type="DataExtension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-              <CustomerKey>${customerKey}</CustomerKey>
+              <CustomerKey>${escapeXml(customerKey)}</CustomerKey>
             </Objects>
           </DeleteRequest>
        </s:Body>
@@ -631,9 +641,9 @@ export async function updateDataRetention(name, length, unit, enabled = true) {
             <Options/>
             <Objects xsi:type="DataExtension">
                <ModifiedDate xsi:nil="true"/>
-               <Name>${name}</Name>
-               <DataRetentionPeriodLength>${enabled ? length : 0}</DataRetentionPeriodLength>
-               <DataRetentionPeriod>${enabled ? unit : 'Days'}</DataRetentionPeriod>
+               <Name>${escapeXml(name)}</Name>
+               <DataRetentionPeriodLength>${Number(enabled ? length : 0)}</DataRetentionPeriodLength>
+               <DataRetentionPeriod>${escapeXml(enabled ? unit : 'Days')}</DataRetentionPeriod>
                <ResetRetentionPeriodOnImport>${enabled}</ResetRetentionPeriodOnImport>
                <DeleteAtEndOfRetentionPeriod>${enabled}</DeleteAtEndOfRetentionPeriod>
                <RowBasedRetention>${enabled}</RowBasedRetention>
@@ -775,7 +785,7 @@ export async function fetchJourneyVersions(key) {
   // If the key endpoint returns only one, we might need to fetch the collection by key
   // Actually, the interactions API usually returns an array if we use the search or if we fetch by key.
   // Standard way to get versions is GET /interaction/v1/interactions?key={key}
-  const allData = await authenticatedGet(`/interaction/v1/interactions?key=${key}`);
+  const allData = await authenticatedGet(`/interaction/v1/interactions?key=${encodeURIComponent(key)}`);
   const items = allData.items ?? allData.results ?? (Array.isArray(allData) ? allData : [data]);
   return items.sort((a, b) => b.version - a.version);
 }

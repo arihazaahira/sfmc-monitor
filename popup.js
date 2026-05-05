@@ -174,7 +174,7 @@ async function loadMetrics(force = false) {
   if (loading) return;
   setLoading(true);
   try {
-    const data = await sendMsg('FETCH_METRICS', { force });
+    const data = await sendMsg('FETCH_ALL_METRICS', { force });
     renderMetrics(data);
   } catch (err) {
     const msg = err.message || 'Unknown error';
