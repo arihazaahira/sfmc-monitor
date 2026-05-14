@@ -119,6 +119,168 @@ async function authenticatedGet(path, isRetry = false) {
   return response.json();
 }
 
+/**
+ * Perform an authenticated POST request.
+ * Automatically retries once on 401 with a refreshed token.
+ */
+async function authenticatedPost(path, body, isRetry = false) {
+  const token = isRetry ? await forceRefreshToken() : await getAccessToken();
+  const baseUrl = await getBaseUrl();
+  const url = `${baseUrl}${path}`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (networkError) {
+    throw new Error(`Network error: ${networkError.message}`);
+  }
+
+  if (response.status === 401) {
+    if (isRetry) throw new Error('AUTH_FAILED');
+    return authenticatedPost(path, body, true);
+  }
+
+  if (!response.ok) {
+    throw new Error(`API error ${response.status}: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/** ─── SFMC Data Extension Sync Helpers ───────────────────────────────────── */
+
+export async function getDataExtensionByName(name) {
+  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <s:Header>
+      <fueloauth xmlns="http://exacttarget.com">\${token}</fueloauth>
+   </s:Header>
+   <s:Body>
+      <RetrieveRequestMsg xmlns="http://exacttarget.com/wsdl/partnerAPI">
+         <RetrieveRequest>
+            <ObjectType>DataExtension</ObjectType>
+            <Properties>Name</Properties>
+            <Properties>CustomerKey</Properties>
+            <Filter xsi:type="SimpleFilterPart">
+               <Property>Name</Property>
+               <SimpleOperator>equals</SimpleOperator>
+               <Value>${escapeXml(name)}</Value>
+            </Filter>
+         </RetrieveRequest>
+      </RetrieveRequestMsg>
+   </s:Body>
+</s:Envelope>`;
+
+  const xml = await authenticatedSoapRequest(envelope, 'Retrieve');
+  const results = extractXmlResults(xml);
+  if (results.length > 0) {
+    return {
+      name: extractXmlValue(results[0], 'Name'),
+      customerKey: extractXmlValue(results[0], 'CustomerKey')
+    };
+  }
+  return null;
+}
+
+export async function createDataExtension(name, fields, folderId = null) {
+  // Limit to 100 fields to avoid SOAP payload issues and SFMC limits
+  const limitedFields = fields.slice(0, 100);
+  
+  const fieldsXml = limitedFields.map(f => {
+    let sfmcType = 'Text';
+    let fieldConfig = '';
+    
+    const type = f.type.toLowerCase();
+    if (['int', 'double', 'currency', 'percent'].includes(type)) {
+      sfmcType = 'Decimal';
+      fieldConfig = '<Precision>18</Precision><Scale>4</Scale>';
+    } else if (type === 'boolean') {
+      sfmcType = 'Boolean';
+    } else if (['date', 'datetime'].includes(type)) {
+      sfmcType = 'Date';
+    } else if (type === 'email') {
+      sfmcType = 'EmailAddress';
+    } else if (type === 'phone') {
+      sfmcType = 'Phone';
+    } else {
+      sfmcType = 'Text';
+      const len = f.length > 0 ? Math.min(f.length, 4000) : 255;
+      fieldConfig = `<MaxLength>${len}</MaxLength>`;
+    }
+    
+    const isPrimaryKey = f.name.toLowerCase() === 'id';
+    
+    return `
+      <Field>
+        <Name>${escapeXml(f.name)}</Name>
+        <FieldType>${sfmcType}</FieldType>
+        ${fieldConfig}
+        <IsPrimaryKey>${isPrimaryKey ? 'true' : 'false'}</IsPrimaryKey>
+        <IsRequired>${isPrimaryKey ? 'true' : 'false'}</IsRequired>
+      </Field>
+    `;
+  }).join('');
+
+  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <s:Header>
+      <fueloauth xmlns="http://exacttarget.com">\${token}</fueloauth>
+   </s:Header>
+   <s:Body>
+      <CreateRequest xmlns="http://exacttarget.com/wsdl/partnerAPI">
+         <Objects xsi:type="DataExtension">
+            <Name>${escapeXml(name)}</Name>
+            <CustomerKey>${escapeXml(name)}</CustomerKey>
+            ${folderId ? `<CategoryID>${escapeXml(folderId)}</CategoryID>` : ''}
+            <IsSendable>false</IsSendable>
+            <Fields>${fieldsXml}</Fields>
+         </Objects>
+      </CreateRequest>
+   </s:Body>
+</s:Envelope>`;
+
+  const xml = await authenticatedSoapRequest(envelope, 'Create');
+  if (xml.includes('<StatusCode>Error</StatusCode>')) {
+      throw new Error("Erreur de création DE: " + extractXmlValue(xml, 'StatusMessage'));
+  }
+  return { customerKey: name };
+}
+
+export async function insertDataExtensionRecords(customerKey, records) {
+  if (!records || records.length === 0) return { inserted: 0 };
+  
+  const payload = records.map(r => {
+    // Determine the Primary Key (Id) and other values
+    const keys = {};
+    const values = {};
+    
+    for (const [key, val] of Object.entries(r)) {
+      if (key === 'attributes') continue;
+      
+      const strVal = val === null ? '' : String(val);
+      if (key === 'Id') {
+        keys[key] = strVal;
+      } else {
+        values[key] = strVal;
+      }
+    }
+    
+    return { keys, values };
+  });
+
+  const url = `/hub/v1/dataevents/key:${encodeURIComponent(customerKey)}/rowset`;
+  const response = await authenticatedPost(url, payload);
+  return response;
+}
+
+
 /** ─── Metric Fetchers ──────────────────────────────────────────────────── */
 
 /**
