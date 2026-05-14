@@ -785,13 +785,13 @@ async function renderSfCoreDetail(item) {
           btnSync.style.background = '#ea001e';
           btnSync.style.opacity = '1';
           btnSync.textContent = 'Erreur';
-          alert(err.message);
+          showToast('Erreur : ' + err.message, 4000);
         }
       };
     }
 
   } catch (err) {
-    pageDetailContent.querySelector('.detail-body').innerHTML = `<div style="color: #ea001e; font-weight: 700;">Erreur: ${err.message}</div>`;
+    pageDetailContent.querySelector('.detail-body').innerHTML = `<div style="color: #ea001e; font-weight: 700;">Erreur: ${escapeHtml(err.message)}</div>`;
   }
 }
 

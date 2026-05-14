@@ -27,49 +27,13 @@ function sanitizeLoginUrl(input) {
   }
 }
 
-async function fetchEnvCredentials() {
-  try {
-    const res = await fetch('.env');
-    const text = await res.text();
-    const env = {};
-    text.split('\n').forEach(line => {
-      const match = line.match(/^\s*([\w]+)\s*=\s*(.*)\s*$/);
-      if (match) {
-        let val = match[2].trim();
-        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-        if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
-        env[match[1]] = val;
-      }
-    });
-    if (env.SF_CORE_LOGIN_URL && env.SF_CORE_CLIENT_ID && env.SF_CORE_CLIENT_SECRET) {
-      return {
-        loginUrl: sanitizeLoginUrl(env.SF_CORE_LOGIN_URL),
-        clientId: env.SF_CORE_CLIENT_ID,
-        clientSecret: env.SF_CORE_CLIENT_SECRET
-      };
-    }
-  } catch (e) {
-    console.warn("Could not read .env file", e);
-  }
-  return null;
-}
-
 /**
- * Retrieve stored Salesforce Core credentials from chrome.storage.local or .env
+ * Retrieve stored Salesforce Core credentials from chrome.storage.local.
  */
 export async function getCoreCredentials() {
   return new Promise((resolve) => {
-    chrome.storage.local.get([CORE_CREDENTIALS_KEY], async (result) => {
+    chrome.storage.local.get([CORE_CREDENTIALS_KEY], (result) => {
       let creds = result[CORE_CREDENTIALS_KEY] || null;
-      
-      // Fallback to .env file if storage is empty
-      if (!creds || !creds.clientId) {
-        const envCreds = await fetchEnvCredentials();
-        if (envCreds) {
-          creds = envCreds;
-        }
-      }
-
       if (creds && creds.loginUrl) {
         creds.loginUrl = sanitizeLoginUrl(creds.loginUrl);
       }
