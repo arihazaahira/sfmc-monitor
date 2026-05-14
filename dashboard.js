@@ -1392,12 +1392,12 @@ function buildAIWelcomeHTML() {
       <p>Ask questions about your instance in natural language.<br>
          For best results, open the relevant tab first so the AI can see the full item list.</p>
       <div class="ai-suggestions">
-        <button class="ai-suggestion-btn" data-q="Donne-moi un résumé complet de cette instance SFMC : contacts, DEs, automations, journeys, utilisateurs. Signale tout ce qui semble anormal.">Résumé complet</button>
-        <button class="ai-suggestion-btn" data-q="Quelles automations sont en erreur ? Liste leurs noms et donne le nombre total.">Automations en erreur</button>
-        <button class="ai-suggestion-btn" data-q="Quelles Data Extensions ont une rétention active et lesquelles expirent dans les 30 prochains jours ?">DEs qui expirent bientôt</button>
-        <button class="ai-suggestion-btn" data-q="Liste tous les utilisateurs API et tous les utilisateurs inactifs (sans connexion récente).">Utilisateurs API &amp; inactifs</button>
-        <button class="ai-suggestion-btn" data-q="Quel est l'état des journeys ? Combien sont actifs (Executing), en brouillon, arrêtés ou en pause ?">État des journeys</button>
-        <button class="ai-suggestion-btn" data-q="Analyse la santé de cette instance SFMC : y a-t-il des problèmes visibles sur les automations, les DEs ou les journeys ?">Analyse de santé</button>
+        <button class="ai-suggestion-btn" data-q="Rapport de santé complet : donne-moi les chiffres clés de l'instance (contacts, DEs, automations, journeys, users) et signale toutes les anomalies détectées.">Rapport de santé</button>
+        <button class="ai-suggestion-btn" data-q="Quelles automations sont en erreur (statut 0 ou -1) ? Liste leurs noms. Y a-t-il des automations en cours d'exécution ou en pause ?">Audit automations</button>
+        <button class="ai-suggestion-btn" data-q="Quelles Data Extensions ont une rétention active (deleteAtEnd = true) ? Lesquelles expirent dans les 90 prochains jours ? Lesquelles n'ont aucune politique de rétention ?">Rétention des DEs</button>
+        <button class="ai-suggestion-btn" data-q="Liste tous les utilisateurs API (isApi = true). Liste aussi les utilisateurs désactivés (active = false). Y a-t-il des comptes suspects ?">Audit utilisateurs</button>
+        <button class="ai-suggestion-btn" data-q="Quels journeys sont actifs (Executing) en ce moment ? Combien de contacts sont en cours ? Y a-t-il des journeys en Executing mais sans contacts ?">Journeys actifs</button>
+        <button class="ai-suggestion-btn" data-q="Quelles sont les automations planifiées (scheduledTime renseigné) ? Donne leurs noms et prochaine heure d'exécution.">Automations planifiées</button>
       </div>
     </div>
   `;
@@ -1479,15 +1479,21 @@ async function submitAIQuestion() {
       ? deCategorizedData.all
       : (allItems.length > 0 ? allItems : lastCategoryItems);
 
-    // Fix 2: Multi-turn — pass last 6 messages (excluding the one just pushed)
-    const history = aiMessages.slice(0, -1).slice(-6);
+    // Multi-turn — pass last 10 messages (excluding the one just pushed)
+    const history = aiMessages.slice(0, -1).slice(-10);
+
+    // Enrich uiContext with cached metrics so AI has top-level counts without extra fetch
+    const cachedMeta = await chrome.storage.local.get('sfmc_metrics_cache');
+    const cachedMetrics = cachedMeta.sfmc_metrics_cache?.data ?? null;
 
     const reply = await sendMsg('ASK_AI', {
       question,
       history,
       uiContext: {
         currentCategory: currentCategory === 'ai' ? null : currentCategory,
-        currentItems: contextItems.slice(0, 200)
+        currentItems: contextItems.slice(0, 200),
+        totalItemsAvailable: contextItems.length,
+        cachedMetrics,
       }
     });
 
@@ -1545,6 +1551,26 @@ function renderMarkdown(text) {
   // Headers → bold lines
   html = html.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
 
+  // Markdown tables — must run before bullet list processing
+  html = html.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
+    const lines = block.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return block;
+    const isHeaderSep = (l) => /^\|[-:| ]+\|$/.test(l.trim());
+    let thead = '';
+    let tbody = '';
+    let inHeader = true;
+    for (const line of lines) {
+      if (isHeaderSep(line)) { inHeader = false; continue; }
+      const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      if (inHeader) {
+        thead = `<tr>${cells.map(c => `<th>${c}</th>`).join('')}</tr>`;
+      } else {
+        tbody += `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+      }
+    }
+    return `<table class="ai-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  });
+
   // Bullet lists: group consecutive lines starting with "- " or "* "
   html = html.replace(/((?:^[ \t]*[-*] .+(?:\n|$))+)/gm, (block) => {
     const items = block.trim().split('\n').map(l =>
@@ -1566,7 +1592,7 @@ function renderMarkdown(text) {
   html = blocks.map(block => {
     block = block.trim();
     if (!block) return '';
-    if (/^<(ul|ol|pre|h[1-6])/.test(block)) return block;
+    if (/^<(ul|ol|pre|table|h[1-6])/.test(block)) return block;
     return `<p>${block.replace(/\n/g, '<br>')}</p>`;
   }).join('');
 

@@ -679,8 +679,12 @@ export async function fetchAutomationsDetails(status = null) {
         id: i.id,
         name: i.name || i.id,
         key: i.customerKey || i.key,
-        // Robust numeric status extraction
-        meta: (i.statusId !== undefined ? i.statusId : i.status) ?? -1
+        description: i.description || '',
+        statusId: (i.statusId !== undefined ? i.statusId : i.status) ?? -1,
+        scheduledTime: i.scheduledTime || '',
+        modifiedDate: i.modifiedDate || '',
+        createdDate: i.createdDate || '',
+        meta: (i.statusId !== undefined ? i.statusId : i.status) ?? -1,
       })));
 
       if (items.length < pageSize) break;
@@ -704,28 +708,33 @@ export async function fetchAutomationById(id) {
 }
 
 export async function fetchSmsDefinitionsDetails() {
-  const data = await authenticatedGet('/messaging/v1/sms/definitions');
+  const data = await authenticatedGet('/messaging/v1/sms/definitions?$pageSize=200');
   const items = data.definitions ?? data.items ?? data.results ?? [];
-  return items.slice(0, 20).map(i => ({
+  return items.map(i => ({
     name: i.name,
     key: i.definitionKey || i.key,
-    meta: i.status || 'Active'
+    status: i.status || 'Active',
+    createdDate: i.createdDate || '',
+    modifiedDate: i.modifiedDate || '',
+    meta: i.status || 'Active',
   }));
 }
 
 export async function fetchEmailDefinitionsDetails() {
-  const data = await authenticatedGet('/messaging/v1/email/definitions');
+  const data = await authenticatedGet('/messaging/v1/email/definitions?$pageSize=200');
   const items = data.definitions ?? data.items ?? data.results ?? [];
-  return items.slice(0, 20).map(i => ({
+  return items.map(i => ({
     name: i.name,
     key: i.definitionKey || i.key,
-    meta: i.status || 'Active'
+    status: i.status || 'Active',
+    createdDate: i.createdDate || '',
+    modifiedDate: i.modifiedDate || '',
+    meta: i.status || 'Active',
   }));
 }
 
 export async function fetchJourneysDetails() {
-  // Fetch latest versions of all journeys
-  const data = await authenticatedGet('/interaction/v1/interactions?mostRecentVersionOnly=true&$pageSize=100');
+  const data = await authenticatedGet('/interaction/v1/interactions?mostRecentVersionOnly=true&$pageSize=500');
   const items = data.items ?? data.results ?? (Array.isArray(data) ? data : []);
   return items.map(i => ({
     id: i.id,
@@ -734,7 +743,16 @@ export async function fetchJourneysDetails() {
     version: i.version,
     definitionType: i.definitionType,
     lastPublishedDate: i.lastPublishedDate,
-    meta: i.status || 'Draft'
+    createdDate: i.createdDate || '',
+    modifiedDate: i.modifiedDate || '',
+    description: i.description || '',
+    entrySourceType: i.triggers?.[0]?.type || '',
+    activeContactsCount: i.stats?.currentPopulation ?? null,
+    cumulativeContactsCount: i.stats?.cumulativePopulation ?? null,
+    goalMet: i.goals?.[0]?.stats?.metCount ?? null,
+    goalTotal: i.goals?.[0]?.stats?.populationCount ?? null,
+    activityCount: i.activities?.length ?? null,
+    meta: i.status || 'Draft',
   }));
 }
 
