@@ -122,32 +122,29 @@ async function handleMessage(message) {
 
     case 'SYNC_SF_CORE_TO_SFMC': {
       const { objectName, fields, records } = message;
-      
-      const creds = await getCoreCredentials();
-      const folderId = creds?.folderId || null;
-      
+
       let de = await getDataExtensionByName(objectName);
       let customerKey;
-      
-      if (!de) {
-        const res = await createDataExtension(objectName, fields, folderId);
+      const isNew = !de;
+
+      if (isNew) {
+        const res = await createDataExtension(objectName, fields, null);
         customerKey = res.customerKey;
       } else {
         customerKey = de.customerKey;
       }
-      
+
       const insertRes = await insertDataExtensionRecords(customerKey, records);
-      return { 
-        success: true, 
-        customerKey, 
-        inserted: records.length, 
-        statusMessage: de ? "Synchronisé avec la Data Extension existante" : "Nouvelle Data Extension créée et synchronisée" 
+      return {
+        success: true,
+        customerKey,
+        inserted: records.length,
+        statusMessage: isNew
+          ? 'Nouvelle Data Extension créée et synchronisée'
+          : 'Synchronisé avec la Data Extension existante'
       };
     }
     
-    case 'FETCH_USERS_DETAILS':
-        return fetchUsersDetails();
-
     case 'REFRESH_METRICS':
       await clearMetricsCache();
       return fetchAllMetrics(true);

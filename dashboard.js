@@ -686,24 +686,20 @@ function renderUserDetail(item) {
 async function renderSfCoreDetail(item) {
   if (!item) return;
   breadcrumbDetail.textContent = item.name;
-  
+
   pageDetailContent.innerHTML = `
-    <div class="detail-header-bar" style="background: #fff; border-bottom: 1px solid #dddbda; padding: 20px 24px; display: flex; align-items: center;">
-        <button class="btn-back" id="btnBack" style="background: #fff; border: 1px solid #dddbda; margin-right: 16px; color: #747474;">
+    <div class="detail-header-bar">
+        <button class="btn-back" id="btnBack">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
         </button>
         <div style="flex:1">
-            <h2 style="font-size:1.5rem; font-weight:700; color: #181818; margin: 0;">${escapeHtml(item.name)}</h2>
-            <div style="font-size:0.85rem; color: #444; margin-top: 2px;">${escapeHtml(item.key)}</div>
+            <h2 style="font-size:1.5rem; font-weight:800; letter-spacing:-0.03em;">${escapeHtml(item.name)}</h2>
+            <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500; margin-top:2px">${escapeHtml(item.key)}</div>
         </div>
-        <div>
-            <span class="badge-clean ${item.custom ? 'active' : 'stopped'}" style="background: #ecebea; color: #444; border: 1px solid #dddbda; font-weight: 600;">${escapeHtml(item.meta)}</span>
-        </div>
+        <span class="badge-clean ${item.custom ? 'active' : ''}">${escapeHtml(item.meta)}</span>
     </div>
-    <div class="detail-body" style="padding: 24px; background: #fafaf9; min-height: 100%;">
-      <div class="loading-state" style="margin-top: 40px; text-align: center; color: #444;">
-        Récupération des données...
-      </div>
+    <div class="detail-body">
+      <div class="loading-state">Récupération des données…</div>
     </div>
   `;
   $('btnBack').onclick = () => pageDetailSection.classList.remove('visible');
@@ -711,56 +707,61 @@ async function renderSfCoreDetail(item) {
   try {
     const details = await sendMsg('FETCH_SF_CORE_OBJECT_DETAILS', { objectName: item.key });
     const { fields, records } = details;
-    
+
     const hasRecords = records && records.length > 0;
-    let tableHtml = `<div style="padding: 40px; text-align: center; color: #747474; border: 1px solid #dddbda; border-radius: 4px; background: #fff;">Aucun enregistrement trouvé.</div>`;
-    
+
+    // Pick display columns: priority first, then fill up to 5
+    const displayFields = [];
+    ['Name', 'CreatedDate', 'Id'].forEach(p => {
+      if (records[0] && p in records[0]) displayFields.push(p);
+    });
     if (hasRecords) {
-      const displayFields = [];
-      const priority = ['Name', 'CreatedDate', 'Id'];
-      priority.forEach(p => {
-        if (fields.find(f => f.name === p)) displayFields.push(p);
-      });
-      for (const f of fields) {
+      for (const key of Object.keys(records[0])) {
         if (displayFields.length >= 5) break;
-        if (!displayFields.includes(f.name) && f.type !== 'textarea') displayFields.push(f.name);
+        if (key !== 'attributes' && !displayFields.includes(key)) displayFields.push(key);
       }
-      
-      const thHtml = displayFields.map(f => `<th style="padding: 12px; text-align: left; background: #f3f2f1; border-bottom: 2px solid #dddbda; color: #444; font-size: 0.8rem; font-weight: 700;">${escapeHtml(f)}</th>`).join('');
-      const trHtml = records.map(r => {
-        const tds = displayFields.map(f => `<td style="padding: 12px; border-bottom: 1px solid #dddbda; font-size: 0.9rem; color: #181818;">${escapeHtml(r[f] || '-')}</td>`).join('');
-        return `<tr>${tds}</tr>`;
-      }).join('');
-      
-      tableHtml = `
-        <div style="background: #fff; border: 1px solid #dddbda; border-radius: 4px; overflow: hidden; margin-top: 20px;">
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead><tr>${thHtml}</tr></thead>
-            <tbody>${trHtml}</tbody>
-          </table>
-        </div>
-      `;
+    }
+
+    let tableHtml = `<p style="color:var(--text-muted); text-align:center; padding:40px 0">Aucun enregistrement trouvé.</p>`;
+    if (hasRecords) {
+      const thHtml = displayFields.map(f => `<th>${escapeHtml(f)}</th>`).join('');
+      const trHtml = records.map(r =>
+        `<tr>${displayFields.map(f => `<td>${escapeHtml(String(r[f] ?? '—'))}</td>`).join('')}</tr>`
+      ).join('');
+      tableHtml = `<div style="overflow-x:auto; margin-top:4px">
+        <table class="ai-table" style="width:100%">
+          <thead><tr>${thHtml}</tr></thead>
+          <tbody>${trHtml}</tbody>
+        </table></div>`;
     }
 
     const detailBody = pageDetailContent.querySelector('.detail-body');
     detailBody.innerHTML = `
-      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-        <div style="background: #fff; border: 1px solid #dddbda; padding: 16px; border-radius: 4px; flex: 1;">
-          <div style="color: #444; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">PREFIX</div>
-          <div style="font-size: 1.25rem; font-weight: 700;">${escapeHtml(item.keyPrefix || '-')}</div>
+      <div class="detail-grid">
+        <div class="detail-card">
+          <span class="label-sm">Préfixe</span>
+          <div class="value-lg">${escapeHtml(item.keyPrefix || '—')}</div>
         </div>
-        <div style="background: #fff; border: 1px solid #dddbda; padding: 16px; border-radius: 4px; flex: 1;">
-          <div style="color: #444; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">CHAMPS</div>
-          <div style="font-size: 1.25rem; font-weight: 700;">${fields.length}</div>
+        <div class="detail-card">
+          <span class="label-sm">Champs</span>
+          <div class="value-lg">${fields.length}</div>
+        </div>
+        <div class="detail-card">
+          <span class="label-sm">Type</span>
+          <div class="value-lg">${item.custom ? 'Custom Object' : 'Standard Object'}</div>
+        </div>
+        <div class="detail-card">
+          <span class="label-sm">Records récupérés</span>
+          <div class="value-lg">${records.length}</div>
         </div>
       </div>
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="font-size: 1.1rem; font-weight: 700; color: #181818; margin: 0;">Enregistrements récents</h3>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin:28px 0 12px">
+        <h3 style="font-size:1rem; font-weight:700; letter-spacing:-0.02em; margin:0">Enregistrements récents</h3>
         ${hasRecords ? `
-        <button id="btnSyncSfmc" style="background: #0176d3; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
-          Synchroniser
+        <button id="btnSyncSfmc" class="btn-primary" style="display:inline-flex; align-items:center; gap:8px; font-size:0.82rem; padding:8px 18px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          Sync → SFMC DE
         </button>` : ''}
       </div>
       ${tableHtml}
@@ -770,28 +771,32 @@ async function renderSfCoreDetail(item) {
     if (btnSync) {
       btnSync.onclick = async () => {
         btnSync.disabled = true;
-        btnSync.style.opacity = '0.7';
-        btnSync.textContent = 'Synchronisation...';
+        btnSync.innerHTML = `<svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Synchronisation…`;
         try {
           const res = await sendMsg('SYNC_SF_CORE_TO_SFMC', {
             objectName: item.key,
             fields: fields,
             records: records
           });
-          btnSync.style.background = '#4bca81';
-          btnSync.style.opacity = '1';
-          btnSync.textContent = 'Synchronisé !';
+          showToast(`✓ ${res.statusMessage} — ${res.inserted} enregistrement(s)`, 4000);
+          btnSync.innerHTML = '✓ Synchronisé';
+          btnSync.style.background = 'var(--success, #22c55e)';
+          setTimeout(() => {
+            btnSync.style.background = '';
+            btnSync.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> Sync → SFMC DE`;
+            btnSync.disabled = false;
+          }, 3000);
         } catch (err) {
-          btnSync.style.background = '#ea001e';
-          btnSync.style.opacity = '1';
-          btnSync.textContent = 'Erreur';
-          showToast('Erreur : ' + err.message, 4000);
+          btnSync.disabled = false;
+          btnSync.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> Sync → SFMC DE`;
+          showToast('Erreur sync : ' + err.message, 5000);
         }
       };
     }
 
   } catch (err) {
-    pageDetailContent.querySelector('.detail-body').innerHTML = `<div style="color: #ea001e; font-weight: 700;">Erreur: ${escapeHtml(err.message)}</div>`;
+    pageDetailContent.querySelector('.detail-body').innerHTML =
+      `<div class="error-state">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -902,22 +907,39 @@ async function renderOnboardingView() {
     pageListContainer.innerHTML = `
         <div class="onboarding-view">
             <div class="onboarding-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             </div>
             <h2>Configuration de la Licence</h2>
-            <p style="color:var(--text-muted); margin-top:12px; max-width:400px">
-                Sélectionnez votre type de licence Salesforce Marketing Cloud pour activer le suivi des limites.
+            <p style="color:var(--text-muted); margin-top:12px; max-width:440px">
+                Sélectionnez votre édition SFMC ou entrez vos limites contractuelles personnalisées.
+                Les valeurs prédéfinies sont indicatives — vérifiez votre contrat Salesforce.
             </p>
-            
-            <div style="margin-top:32px; display:flex; flex-direction:column; gap:16px; width:100%; max-width:320px; text-align:left">
+
+            <div style="margin-top:32px; display:flex; flex-direction:column; gap:16px; width:100%; max-width:360px; text-align:left">
                 <div class="field">
-                    <label style="font-weight:700; font-size:0.85rem; margin-bottom:8px; display:block">TYPE DE LICENCE</label>
-                    <select id="setup_client_tier" style="width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--border-dark); font-family:inherit; font-weight:600">
-                        <option value="pro">Pro Edition</option>
-                        <option value="corporate">Corporate Edition</option>
-                        <option value="enterprise">Enterprise Edition</option>
-                        <option value="basic">Basic Edition</option>
+                    <label style="font-weight:700; font-size:0.82rem; letter-spacing:0.04em; margin-bottom:8px; display:block">TYPE DE LICENCE</label>
+                    <select id="setup_client_tier" style="width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--border-dark); font-family:inherit; font-weight:600; background:var(--surface, #fff)">
+                        <option value="pro">Pro Edition (~100K contacts)</option>
+                        <option value="corporate">Corporate Edition (~1M contacts)</option>
+                        <option value="enterprise">Enterprise Edition (~10M contacts)</option>
+                        <option value="basic">Basic Edition (~15K contacts)</option>
+                        <option value="custom">Personnalisé (saisie manuelle)</option>
                     </select>
+                </div>
+
+                <div id="customLimitsForm" style="display:none; flex-direction:column; gap:12px">
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0">Entrez les limites figurant dans votre contrat :</p>
+                    ${[
+                        ['custom_contacts',   'Contacts'],
+                        ['custom_automations','Automations'],
+                        ['custom_users',      'Utilisateurs'],
+                        ['custom_storage',    'Stockage (GB)']
+                    ].map(([id, label]) => `
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; display:block; margin-bottom:4px">${label}</label>
+                        <input type="number" id="${id}" min="0" placeholder="0"
+                            style="width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid var(--border-dark); font-family:inherit; font-size:0.9rem"/>
+                    </div>`).join('')}
                 </div>
             </div>
 
@@ -925,12 +947,31 @@ async function renderOnboardingView() {
         </div>
     `;
 
+    const tierSel = $('setup_client_tier');
+    const customForm = $('customLimitsForm');
+    tierSel.addEventListener('change', () => {
+        customForm.style.display = tierSel.value === 'custom' ? 'flex' : 'none';
+    });
+
     $('btnSaveOnboarding').onclick = async () => {
-        const tier = $('setup_client_tier').value;
-        const config = {
-            clients: [{ name: 'Instance SFMC', tier, manualStorageGb: 0 }]
-        };
-        
+        const tier = tierSel.value;
+        let limits = null;
+
+        if (tier === 'custom') {
+            const toInt = id => Math.max(0, parseInt($(`custom_${id}`)?.value || '0', 10));
+            limits = {
+                contacts:    toInt('contacts'),
+                automations: toInt('automations'),
+                users:       toInt('users'),
+                storage:     toInt('storage'),
+                superMessages: 0,
+                api: 0
+            };
+            // Merge into the custom tier so calculateUsage picks it up
+            SFMC_TIERS.custom.limits = limits;
+        }
+
+        const config = { clients: [{ name: 'Instance SFMC', tier, manualStorageGb: 0 }] };
         await saveClientConfig(config);
         renderLimitsDashboard();
     };
@@ -1277,7 +1318,7 @@ function showRetentionModal(key, name, currentLength, currentUnit, isCurrentlyEn
             }
             selectItem(currentItemId);
         } catch (err) {
-            alert(`Erreur: ${err.message}`);
+            showToast('Erreur : ' + err.message, 4000);
         }
     };
     
@@ -1311,7 +1352,7 @@ async function handleDeleteDE(key, element) {
         element.style.transform = 'translateY(10px)';
         setTimeout(() => element.remove(), 300);
     } catch (err) {
-        alert(`Cette DE ne peut pas être supprimée (data relationship existante).`);
+        showToast('Suppression impossible : ' + escapeHtml(err.message), 4000);
     }
 }
 

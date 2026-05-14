@@ -76,20 +76,32 @@ export async function describeSalesforceObject(objectName) {
 
 /**
  * Fetch the 10 most recent records for an object.
- * Checks if CreatedDate exists in schema before sorting.
+ * Selects only a capped set of query fields to avoid SOQL limits.
+ * The full fieldsList is still available to callers for schema/type mapping.
  */
 export async function fetchSalesforceObjectRecentRecords(objectName, fieldsList = []) {
   if (fieldsList.length === 0) return { records: [] };
-  
+
   const hasCreatedDate = fieldsList.some(f => f.name === 'CreatedDate');
-  const fieldNames = fieldsList.map(f => f.name).join(',');
-  
-  let query = `SELECT ${fieldNames} FROM ${objectName}`;
-  if (hasCreatedDate) {
-    query += ` ORDER BY CreatedDate DESC`;
+
+  // Build a capped SELECT: prioritise key fields, exclude blobs/textareas, cap at 25
+  const PRIORITY = ['Id', 'Name', 'CreatedDate', 'Email', 'Phone', 'Status',
+                    'Type', 'OwnerId', 'AccountId', 'ContactId', 'Title'];
+  const queryFields = [];
+  for (const p of PRIORITY) {
+    if (fieldsList.find(f => f.name === p)) queryFields.push(p);
   }
+  for (const f of fieldsList) {
+    if (queryFields.length >= 25) break;
+    if (!queryFields.includes(f.name) && f.type !== 'textarea' && f.type !== 'base64' && f.type !== 'encryptedstring') {
+      queryFields.push(f.name);
+    }
+  }
+
+  let query = `SELECT ${queryFields.join(',')} FROM ${objectName}`;
+  if (hasCreatedDate) query += ` ORDER BY CreatedDate DESC`;
   query += ` LIMIT 10`;
-  
+
   const url = `/services/data/v64.0/query/?q=${encodeURIComponent(query)}`;
   return authenticatedCoreGet(url);
 }

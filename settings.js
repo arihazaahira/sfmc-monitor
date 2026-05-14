@@ -36,6 +36,8 @@ const fldCoreLoginUrl = document.getElementById('coreLoginUrl');
 const fldCoreClientId = document.getElementById('coreClientId');
 const fldCoreSecret = document.getElementById('coreClientSecret');
 const btnSaveCore = document.getElementById('btnSaveCore');
+const btnTestCore = document.getElementById('btnTestCore');
+const testIconCore = document.getElementById('testIconCore');
 const toggleCoreSecret = document.getElementById('toggleCoreSecret');
 const eyeIconCore = document.getElementById('eyeIconCore');
 
@@ -309,7 +311,33 @@ async function loadCoreCredentials() {
   fldCoreSecret.placeholder = creds.clientSecret
     ? '••••••••  (saved — enter new value to change)'
     : '••••••••••••••••••••••••••••••••';
+
+  if (creds.clientId && creds.clientSecret && creds.loginUrl) {
+    btnTestCore.disabled = false;
+  }
 }
+
+// ─── Test Core connection ──────────────────────────────────────────────────────
+
+btnTestCore.addEventListener('click', async () => {
+  btnTestCore.disabled = true;
+  testIconCore.classList.add('spin');
+
+  try {
+    await getCoreTokenAndInstance();
+    showToast('✅ Salesforce Core — connexion réussie !', 'success');
+  } catch (err) {
+    const msg = err.message || 'Unknown error';
+    if (msg === 'CORE_NOT_CONFIGURED') {
+      showToast('⚠️ Sauvegardez les credentials Core d\'abord.', 'error');
+    } else {
+      showToast(`❌ Core auth failed: ${msg}`, 'error', 5000);
+    }
+  } finally {
+    btnTestCore.disabled = false;
+    testIconCore.classList.remove('spin');
+  }
+});
 
 // ─── Save AI key ──────────────────────────────────────────────────────────────
 
@@ -374,6 +402,7 @@ btnSaveCore.addEventListener('click', async () => {
 
     await saveCoreCredentials(clientId, secretToSave, loginUrl);
     showToast('✅ Core Credentials saved successfully.', 'success');
+    btnTestCore.disabled = false;
 
     fldCoreSecret.value = '';
     fldCoreSecret.placeholder = '••••••••  (saved — enter new value to change)';
