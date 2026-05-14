@@ -1,44 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SFMC Dashboard — Settings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <style>
     /* ─── Reset & Base ──────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:             #F8FAFC;
-      --bg-surface:     #FFFFFF;
-      --bg-card:        #FFFFFF;
-      --bg-input:       #F8FAFC;
-      --border:         #F1F5F9;
-      --border-dark:    #E2E8F0;
-      --accent:         #6366F1;
-      --accent-hover:   #4F46E5;
-      --accent-soft:    #F5F3FF;
-      --accent-mid:     #DDD6FE;
-      --success:        #10B981;
-      --danger:         #EF4444;
-      --warning:        #F59E0B;
-      --text-primary:   #0F172A;
-      --text-secondary: #475569;
-      --text-muted:     #94A3B8;
-      --radius-lg:      20px;
-      --radius:         16px;
-      --radius-sm:      12px;
-      --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      --max-w:          640px;
-      --shadow-sm:      0 1px 2px rgba(0,0,0,0.02);
-      --shadow-md:      0 4px 12px rgba(0,0,0,0.03);
-      --shadow-lg:      0 20px 25px -5px rgba(0,0,0,0.05);
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    html { font-size: 15px; }
+    :root {
+      --bg: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-input: #F8FAFC;
+      --border: #F1F5F9;
+      --border-dark: #E2E8F0;
+      --accent: #6366F1;
+      --accent-hover: #4F46E5;
+      --accent-soft: #F5F3FF;
+      --accent-mid: #DDD6FE;
+      --success: #10B981;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --radius-lg: 20px;
+      --radius: 16px;
+      --radius-sm: 12px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --max-w: 640px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.02);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.03);
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+    }
+
+    html {
+      font-size: 15px;
+    }
 
     body {
       font-family: 'Outfit', 'Inter', system-ui, sans-serif;
@@ -79,7 +90,7 @@
       justify-content: center;
       font-size: 22px;
       flex-shrink: 0;
-      box-shadow: 0 8px 16px rgba(99,102,241,0.2);
+      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
       color: white;
     }
 
@@ -117,10 +128,26 @@
       background: var(--text-muted);
     }
 
-    .conn-status.ok   { border-color: #DCFCE7; color: #166534; background: #F0FDF4; }
-    .conn-status.ok   .conn-dot { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
-    .conn-status.err  { border-color: #FEE2E2; color: #991B1B; background: #FEF2F2; }
-    .conn-status.err  .conn-dot { background: var(--danger); }
+    .conn-status.ok {
+      border-color: #DCFCE7;
+      color: #166534;
+      background: #F0FDF4;
+    }
+
+    .conn-status.ok .conn-dot {
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    .conn-status.err {
+      border-color: #FEE2E2;
+      color: #991B1B;
+      background: #FEF2F2;
+    }
+
+    .conn-status.err .conn-dot {
+      background: var(--danger);
+    }
 
     /* ─── Page container ─────────────────────────────────────────────────── */
     .page {
@@ -165,8 +192,8 @@
     }
 
     .card:hover {
-        border-color: var(--accent);
-        box-shadow: var(--shadow-lg);
+      border-color: var(--accent);
+      box-shadow: var(--shadow-lg);
     }
 
     .card-title {
@@ -189,7 +216,9 @@
       margin-bottom: 24px;
     }
 
-    .form-group:last-child { margin-bottom: 0; }
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
 
     label {
       display: block;
@@ -200,7 +229,10 @@
       letter-spacing: 0.01em;
     }
 
-    label span.required { color: var(--danger); margin-left: 2px; }
+    label span.required {
+      color: var(--danger);
+      margin-left: 2px;
+    }
 
     .field-wrap {
       position: relative;
@@ -224,10 +256,13 @@
     input[type="password"]:focus {
       border-color: var(--accent);
       background: #FFFFFF;
-      box-shadow: 0 0 0 5px rgba(99,102,241,0.08);
+      box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.08);
     }
 
-    input::placeholder { color: var(--text-muted); opacity: 0.6; }
+    input::placeholder {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
 
     .toggle-secret {
       position: absolute;
@@ -245,7 +280,10 @@
       border-radius: 8px;
     }
 
-    .toggle-secret:hover { color: var(--accent); background: var(--accent-soft); }
+    .toggle-secret:hover {
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
 
     .field-hint {
       font-size: 0.85rem;
@@ -254,7 +292,9 @@
       line-height: 1.6;
     }
 
-    .field-hint strong { color: var(--text-secondary); }
+    .field-hint strong {
+      color: var(--text-secondary);
+    }
 
     .field-hint a {
       color: var(--accent);
@@ -262,7 +302,9 @@
       font-weight: 600;
     }
 
-    .field-hint a:hover { text-decoration: underline; }
+    .field-hint a:hover {
+      text-decoration: underline;
+    }
 
     /* ── Subdomain preview ─────────────────────────────────────────────────── */
     .subdomain-preview {
@@ -276,7 +318,10 @@
       display: inline-block;
     }
 
-    .subdomain-preview.active { color: var(--accent); font-weight: 600; }
+    .subdomain-preview.active {
+      color: var(--accent);
+      font-weight: 600;
+    }
 
     /* ─── Action row ─────────────────────────────────────────────────────── */
     .action-row {
@@ -301,13 +346,13 @@
       font-weight: 700;
       cursor: pointer;
       transition: all var(--transition);
-      box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
     }
 
     .btn-save:hover:not(:disabled) {
       background: var(--accent-hover);
       transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(99,102,241,0.3);
+      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
     }
 
     .btn-save:disabled {
@@ -355,7 +400,10 @@
       margin-left: auto;
     }
 
-    .btn-clear:hover { background: #FEF2F2; border-color: #FEE2E2; }
+    .btn-clear:hover {
+      background: #FEF2F2;
+      border-color: #FEE2E2;
+    }
 
     /* ─── Toast notification ─────────────────────────────────────────────── */
     #toast {
@@ -376,7 +424,7 @@
       pointer-events: none;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 100;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
 
     #toast.show {
@@ -384,9 +432,17 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    #toast.success { background: var(--success); }
-    #toast.error   { background: var(--danger); }
-    #toast.info    { background: var(--accent); }
+    #toast.success {
+      background: var(--success);
+    }
+
+    #toast.error {
+      background: var(--danger);
+    }
+
+    #toast.info {
+      background: var(--accent);
+    }
 
     /* ─── Info callout ───────────────────────────────────────────────────── */
     .callout {
@@ -399,14 +455,20 @@
       line-height: 1.7;
     }
 
-    .callout strong { color: var(--text-primary); font-weight: 800; }
+    .callout strong {
+      color: var(--text-primary);
+      font-weight: 800;
+    }
 
-    .callout ol, .callout ul {
+    .callout ol,
+    .callout ul {
       padding-left: 20px;
       margin-top: 14px;
     }
 
-    .callout li { margin-bottom: 10px; }
+    .callout li {
+      margin-bottom: 10px;
+    }
 
     /* ─── Divider ────────────────────────────────────────────────────────── */
     .divider {
@@ -416,10 +478,18 @@
     }
 
     /* ─── Spinner ────────────────────────────────────────────────────────── */
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spin { animation: spin 0.8s linear infinite; }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spin {
+      animation: spin 0.8s linear infinite;
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Top Bar -->
@@ -461,14 +531,8 @@
         <div class="form-group">
           <label for="subdomain">Subdomain <span class="required">*</span></label>
           <div class="field-wrap">
-            <input
-              type="text"
-              id="subdomain"
-              name="subdomain"
-              placeholder="mc123abc"
-              spellcheck="false"
-              autocomplete="off"
-            />
+            <input type="text" id="subdomain" name="subdomain" placeholder="mc123abc" spellcheck="false"
+              autocomplete="off" />
           </div>
           <div class="subdomain-preview" id="subdomainPreview">
             Your REST endpoint will be: <em>https://&lt;subdomain&gt;.rest.marketingcloudapis.com</em>
@@ -479,14 +543,8 @@
         <div class="form-group">
           <label for="clientId">Client ID <span class="required">*</span></label>
           <div class="field-wrap">
-            <input
-              type="text"
-              id="clientId"
-              name="clientId"
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              spellcheck="false"
-              autocomplete="off"
-            />
+            <input type="text" id="clientId" name="clientId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              spellcheck="false" autocomplete="off" />
           </div>
           <p class="field-hint">Found in your Installed Package under <strong>Components → API Integration</strong>.</p>
         </div>
@@ -495,24 +553,14 @@
         <div class="form-group">
           <label for="clientSecret">Client Secret <span class="required">*</span></label>
           <div class="field-wrap">
-            <input
-              type="password"
-              id="clientSecret"
-              name="clientSecret"
-              placeholder="••••••••••••••••••••••••••••••••"
-              autocomplete="new-password"
-            />
-            <button
-              type="button"
-              class="toggle-secret"
-              id="toggleSecret"
-              title="Show / hide secret"
-              aria-label="Toggle secret visibility"
-            >
-              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
+            <input type="password" id="clientSecret" name="clientSecret" placeholder="••••••••••••••••••••••••••••••••"
+              autocomplete="new-password" />
+            <button type="button" class="toggle-secret" id="toggleSecret" title="Show / hide secret"
+              aria-label="Toggle secret visibility">
+              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
           </div>
@@ -524,11 +572,11 @@
         <!-- Actions -->
         <div class="action-row">
           <button type="submit" class="btn-save" id="btnSave">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
             </svg>
             Save Credentials
           </button>
@@ -536,18 +584,18 @@
           <button type="button" class="btn-test" id="btnTest" disabled>
             <svg id="testIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
             Test Connection
           </button>
 
           <button type="button" class="btn-clear" id="btnClear">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
             </svg>
             Clear All
           </button>
@@ -565,24 +613,14 @@
       <div class="form-group">
         <label for="anthropicKey">Anthropic API Key</label>
         <div class="field-wrap">
-          <input
-            type="password"
-            id="anthropicKey"
-            name="anthropicKey"
-            placeholder="sk-ant-••••••••••••••••••••••••••••••••"
-            autocomplete="new-password"
-          />
-          <button
-            type="button"
-            class="toggle-secret"
-            id="toggleAiKey"
-            title="Show / hide API key"
-            aria-label="Toggle API key visibility"
-          >
-            <svg id="eyeIconAi" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+          <input type="password" id="anthropicKey" name="anthropicKey"
+            placeholder="sk-ant-••••••••••••••••••••••••••••••••" autocomplete="new-password" />
+          <button type="button" class="toggle-secret" id="toggleAiKey" title="Show / hide API key"
+            aria-label="Toggle API key visibility">
+            <svg id="eyeIconAi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
         </div>
@@ -594,13 +632,63 @@
 
       <div class="action-row">
         <button type="button" class="btn-save" id="btnSaveAi">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
           </svg>
           Save API Key
+        </button>
+      </div>
+    </div>
+
+    <!-- Salesforce Core Credentials card -->
+    <div class="card">
+      <div class="card-title">
+        <span class="card-title-icon">☁️</span>
+        Salesforce Core Credentials
+      </div>
+
+      <div class="form-group">
+        <label for="coreLoginUrl">Login URL <span class="required">*</span></label>
+        <div class="field-wrap">
+          <input type="text" id="coreLoginUrl" placeholder="https://orgfarm-xyz.my.salesforce.com" spellcheck="false"
+            autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="coreClientId">Client ID <span class="required">*</span></label>
+        <div class="field-wrap">
+          <input type="text" id="coreClientId" placeholder="3MVG9lKcPoN..." spellcheck="false" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="coreClientSecret">Client Secret <span class="required">*</span></label>
+        <div class="field-wrap">
+          <input type="password" id="coreClientSecret" placeholder="••••••••••••" autocomplete="new-password" />
+          <button type="button" class="toggle-secret" id="toggleCoreSecret" title="Show / hide secret"
+            aria-label="Toggle secret visibility">
+            <svg id="eyeIconCore" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button type="button" class="btn-save" id="btnSaveCore">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save Core Credentials
         </button>
       </div>
     </div>
@@ -616,13 +704,17 @@
         <ol>
           <li>Log in to <strong>Salesforce Marketing Cloud</strong>.</li>
           <li>Go to <code>Setup → Apps → Installed Packages</code>.</li>
-          <li>Click <strong>New</strong>, give it a name (e.g. <code>SFMC Dashboard</code>), then <strong>Save</strong>.</li>
+          <li>Click <strong>New</strong>, give it a name (e.g. <code>SFMC Dashboard</code>), then <strong>Save</strong>.
+          </li>
           <li>Click <strong>Add Component → API Integration</strong>.</li>
           <li>Choose <strong>Server-to-Server</strong> (no user context needed).</li>
-          <li>Grant these scopes: <code>contacts_read</code>, <code>data_extensions_read</code>, <code>automations_read</code>.</li>
-          <li>Save. You'll see your <strong>Client Id</strong>, <strong>Client Secret</strong>, and <strong>MID</strong>.</li>
+          <li>Grant these scopes: <code>contacts_read</code>, <code>data_extensions_read</code>,
+            <code>automations_read</code>.</li>
+          <li>Save. You'll see your <strong>Client Id</strong>, <strong>Client Secret</strong>, and
+            <strong>MID</strong>.</li>
           <li>Your <strong>Subdomain</strong> is the unique prefix in your tenant's auth URL:
-            <br/><code>https://<strong>mc123abc</strong>.auth.marketingcloudapis.com</code></li>
+            <br /><code>https://<strong>mc123abc</strong>.auth.marketingcloudapis.com</code>
+          </li>
         </ol>
       </div>
     </div>
@@ -638,7 +730,8 @@
           <li>Credentials are stored <strong>only</strong> in <code>chrome.storage.local</code> on this device.</li>
           <li>The <strong>client_secret</strong> is never displayed in the UI after being saved.</li>
           <li>Access tokens are cached in memory and auto-refreshed before they expire.</li>
-          <li>No data is sent to any third-party server — all requests go directly to <code>*.marketingcloudapis.com</code>.</li>
+          <li>No data is sent to any third-party server — all requests go directly to
+            <code>*.marketingcloudapis.com</code>.</li>
         </ul>
       </div>
     </div>
@@ -650,4 +743,5 @@
 
   <script src="settings.js" type="module"></script>
 </body>
+
 </html>

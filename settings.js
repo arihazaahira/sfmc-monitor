@@ -7,29 +7,37 @@
  */
 
 import { saveCredentials, getCredentials, clearCredentials, getAccessToken } from './auth.js';
+import { saveCoreCredentials, getCoreCredentials, clearCoreCredentials, getCoreTokenAndInstance } from './auth-core.js';
 
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 
-const form          = document.getElementById('settingsForm');
-const fldSubdomain  = document.getElementById('subdomain');
-const fldClientId   = document.getElementById('clientId');
-const fldSecret     = document.getElementById('clientSecret');
-const btnSave       = document.getElementById('btnSave');
-const btnTest       = document.getElementById('btnTest');
-const btnClear      = document.getElementById('btnClear');
-const toggleSecret  = document.getElementById('toggleSecret');
-const eyeIcon       = document.getElementById('eyeIcon');
+const form = document.getElementById('settingsForm');
+const fldSubdomain = document.getElementById('subdomain');
+const fldClientId = document.getElementById('clientId');
+const fldSecret = document.getElementById('clientSecret');
+const btnSave = document.getElementById('btnSave');
+const btnTest = document.getElementById('btnTest');
+const btnClear = document.getElementById('btnClear');
+const toggleSecret = document.getElementById('toggleSecret');
+const eyeIcon = document.getElementById('eyeIcon');
 const subdomainPreview = document.getElementById('subdomainPreview');
-const toast         = document.getElementById('toast');
-const connStatus    = document.getElementById('connStatus');
-const connDot       = document.getElementById('connDot');
-const connText      = document.getElementById('connText');
-const testIcon      = document.getElementById('testIcon');
+const toast = document.getElementById('toast');
+const connStatus = document.getElementById('connStatus');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+const testIcon = document.getElementById('testIcon');
 
-const fldAiKey      = document.getElementById('anthropicKey');
-const toggleAiKey   = document.getElementById('toggleAiKey');
-const eyeIconAi     = document.getElementById('eyeIconAi');
-const btnSaveAi     = document.getElementById('btnSaveAi');
+const fldAiKey = document.getElementById('anthropicKey');
+const toggleAiKey = document.getElementById('toggleAiKey');
+const eyeIconAi = document.getElementById('eyeIconAi');
+const btnSaveAi = document.getElementById('btnSaveAi');
+
+const fldCoreLoginUrl = document.getElementById('coreLoginUrl');
+const fldCoreClientId = document.getElementById('coreClientId');
+const fldCoreSecret = document.getElementById('coreClientSecret');
+const btnSaveCore = document.getElementById('btnSaveCore');
+const toggleCoreSecret = document.getElementById('toggleCoreSecret');
+const eyeIconCore = document.getElementById('eyeIconCore');
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 
@@ -109,7 +117,7 @@ async function loadSavedCredentials() {
   }
 
   fldSubdomain.value = creds.subdomain || '';
-  fldClientId.value  = creds.clientId  || '';
+  fldClientId.value = creds.clientId || '';
   // NEVER re-populate the secret field — show placeholder only
   fldSecret.placeholder = creds.clientSecret
     ? '••••••••  (saved — enter new value to change)'
@@ -130,9 +138,9 @@ async function loadSavedCredentials() {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const subdomain  = sanitizeSubdomain(fldSubdomain.value);
-  const clientId   = fldClientId.value.trim();
-  const secretVal  = fldSecret.value; // may be empty if user didn't change it
+  const subdomain = sanitizeSubdomain(fldSubdomain.value);
+  const clientId = fldClientId.value.trim();
+  const secretVal = fldSecret.value; // may be empty if user didn't change it
 
   if (!subdomain || !clientId) {
     showToast('⚠️ Subdomain and Client ID are required.', 'error');
@@ -219,11 +227,18 @@ btnClear.addEventListener('click', async () => {
 
   try {
     await clearCredentials();
+    await clearCoreCredentials();
 
     fldSubdomain.value = '';
-    fldClientId.value  = '';
-    fldSecret.value    = '';
+    fldClientId.value = '';
+    fldSecret.value = '';
     fldSecret.placeholder = '••••••••••••••••••••••••••••••••';
+
+    fldCoreLoginUrl.value = '';
+    fldCoreClientId.value = '';
+    fldCoreSecret.value = '';
+    fldCoreSecret.placeholder = '••••••••••••••••••••••••••••••••';
+
     subdomainPreview.textContent = 'Your REST endpoint will be: https://<subdomain>.rest.marketingcloudapis.com';
     subdomainPreview.className = 'subdomain-preview';
     btnTest.disabled = true;
@@ -260,6 +275,20 @@ toggleAiKey.addEventListener('click', () => {
        <circle cx="12" cy="12" r="3"/>`;
 });
 
+// ─── Core key toggle visibility ─────────────────────────────────────────────────
+
+let coreSecretVisible = false;
+toggleCoreSecret.addEventListener('click', () => {
+  coreSecretVisible = !coreSecretVisible;
+  fldCoreSecret.type = coreSecretVisible ? 'text' : 'password';
+  eyeIconCore.innerHTML = coreSecretVisible
+    ? `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+       <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+       <line x1="1" y1="1" x2="23" y2="23"/>`
+    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+       <circle cx="12" cy="12" r="3"/>`;
+});
+
 // ─── Load AI config on page open ──────────────────────────────────────────────
 
 async function loadAiConfig() {
@@ -267,6 +296,19 @@ async function loadAiConfig() {
   if (config?.anthropicApiKey) {
     fldAiKey.placeholder = 'sk-ant-••••••••  (saved — enter new value to change)';
   }
+}
+
+// ─── Load Core config on page open ──────────────────────────────────────────────
+
+async function loadCoreCredentials() {
+  const creds = await getCoreCredentials();
+  if (!creds) return;
+
+  fldCoreLoginUrl.value = creds.loginUrl || '';
+  fldCoreClientId.value = creds.clientId || '';
+  fldCoreSecret.placeholder = creds.clientSecret
+    ? '••••••••  (saved — enter new value to change)'
+    : '••••••••••••••••••••••••••••••••';
 }
 
 // ─── Save AI key ──────────────────────────────────────────────────────────────
@@ -303,7 +345,47 @@ btnSaveAi.addEventListener('click', async () => {
   }
 });
 
+// ─── Save Core key ──────────────────────────────────────────────────────────────
+
+btnSaveCore.addEventListener('click', async () => {
+  const loginUrl = fldCoreLoginUrl.value.trim();
+  const clientId = fldCoreClientId.value.trim();
+  const secretVal = fldCoreSecret.value;
+
+  if (!loginUrl || !clientId) {
+    showToast('⚠️ Login URL and Client ID are required.', 'error');
+    return;
+  }
+
+  btnSaveCore.disabled = true;
+
+  try {
+    let secretToSave = secretVal;
+    if (!secretToSave) {
+      const existing = await getCoreCredentials();
+      secretToSave = existing?.clientSecret || '';
+    }
+
+    if (!secretToSave) {
+      showToast('⚠️ Client Secret is required.', 'error');
+      btnSaveCore.disabled = false;
+      return;
+    }
+
+    await saveCoreCredentials(clientId, secretToSave, loginUrl);
+    showToast('✅ Core Credentials saved successfully.', 'success');
+
+    fldCoreSecret.value = '';
+    fldCoreSecret.placeholder = '••••••••  (saved — enter new value to change)';
+  } catch (err) {
+    showToast(`❌ Save failed: ${err.message}`, 'error');
+  } finally {
+    btnSaveCore.disabled = false;
+  }
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 loadSavedCredentials();
 loadAiConfig();
+loadCoreCredentials();

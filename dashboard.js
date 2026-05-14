@@ -145,6 +145,8 @@ async function switchCategory(cat) {
     await renderDataExtensionsOverview();
   } else if (cat === 'ai') {
     renderAIView();
+  } else if (cat === 'sf-core') {
+    await loadSfCoreData();
   } else {
     await loadCategoryData(cat);
   }
@@ -161,6 +163,27 @@ async function loadCategoryData(cat) {
     filterAndRenderList();
   } catch (err) {
     pageListContainer.innerHTML = `<div class="error-state">Error: ${err.message}</div>`;
+  }
+}
+
+async function loadSfCoreData() {
+  pageListContainer.innerHTML = '<div class="loading-state">Fetching Salesforce Core Objects...</div>';
+  renderTabs('sf-core');
+
+  try {
+    const items = await sendMsg('FETCH_SF_CORE_OBJECTS');
+    allItems = items.map(i => ({ ...i, id: i.key })); // Ensure it has an ID for selectItem
+    filterAndRenderList();
+  } catch (err) {
+    if (err.message && err.message.includes('CORE_NOT_CONFIGURED')) {
+      pageListContainer.innerHTML = `
+        <div class="error-state">
+          <h3>Salesforce Core Non Configuré</h3>
+          <p>Veuillez configurer vos identifiants Core dans les paramètres de l'extension.</p>
+        </div>`;
+    } else {
+      pageListContainer.innerHTML = `<div class="error-state">Error: ${err.message}</div>`;
+    }
   }
 }
 
@@ -186,6 +209,12 @@ function renderTabs(cat) {
       <button class="tab-btn active" data-tab="all">All</button>
       <button class="tab-btn" data-tab="active">Active</button>
       <button class="tab-btn" data-tab="api">API Users</button>
+    `;
+  } else if (cat === 'sf-core') {
+    pageTabs.innerHTML = `
+      <button class="tab-btn active" data-tab="all">All</button>
+      <button class="tab-btn" data-tab="standard">Standard</button>
+      <button class="tab-btn" data-tab="custom">Custom</button>
     `;
   } else {
     pageTabs.innerHTML = '';
@@ -221,6 +250,9 @@ function filterAndRenderList() {
   } else if (currentCategory === 'users') {
     if (activeTab === 'active') filtered = allItems.filter(i => i.active === 'True' || i.active === 'true' || i.active === true);
     else if (activeTab === 'api') filtered = allItems.filter(i => i.isApi === 'True' || i.isApi === 'true' || i.isApi === true);
+  } else if (currentCategory === 'sf-core') {
+    if (activeTab === 'standard') filtered = allItems.filter(i => !i.custom);
+    else if (activeTab === 'custom') filtered = allItems.filter(i => i.custom);
   }
 
   // Search Filtering
@@ -375,6 +407,9 @@ async function selectItem(id) {
     } else if (currentCategory === 'users') {
       const item = allItems.find(i => i.id === id);
       renderUserDetail(item);
+    } else if (currentCategory === 'sf-core') {
+      const item = allItems.find(i => i.id === id);
+      renderSfCoreDetail(item);
     }
   } catch (err) {
     pageDetailContent.innerHTML = `<div class="error-state">Error: ${err.message}</div>`;
@@ -648,6 +683,117 @@ function renderUserDetail(item) {
   $('btnBack').onclick = () => pageDetailSection.classList.remove('visible');
 }
 
+async function renderSfCoreDetail(item) {
+  if (!item) return;
+  breadcrumbDetail.textContent = item.name;
+  
+  pageDetailContent.innerHTML = `
+    <div class="detail-header-bar" style="background: #fff; border-bottom: 1px solid #dddbda; padding: 20px 24px; display: flex; align-items: center;">
+        <button class="btn-back" id="btnBack" style="background: #fff; border: 1px solid #dddbda; margin-right: 16px; color: #747474;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        </button>
+        <div style="flex:1">
+            <h2 style="font-size:1.5rem; font-weight:700; color: #181818; margin: 0;">${escapeHtml(item.name)}</h2>
+            <div style="font-size:0.85rem; color: #444; margin-top: 2px;">${escapeHtml(item.key)}</div>
+        </div>
+        <div>
+            <span class="badge-clean ${item.custom ? 'active' : 'stopped'}" style="background: #ecebea; color: #444; border: 1px solid #dddbda; font-weight: 600;">${escapeHtml(item.meta)}</span>
+        </div>
+    </div>
+    <div class="detail-body" style="padding: 24px; background: #fafaf9; min-height: 100%;">
+      <div class="loading-state" style="margin-top: 40px; text-align: center; color: #444;">
+        Récupération des données...
+      </div>
+    </div>
+  `;
+  $('btnBack').onclick = () => pageDetailSection.classList.remove('visible');
+
+  try {
+    const details = await sendMsg('FETCH_SF_CORE_OBJECT_DETAILS', { objectName: item.key });
+    const { fields, records } = details;
+    
+    const hasRecords = records && records.length > 0;
+    let tableHtml = `<div style="padding: 40px; text-align: center; color: #747474; border: 1px solid #dddbda; border-radius: 4px; background: #fff;">Aucun enregistrement trouvé.</div>`;
+    
+    if (hasRecords) {
+      const displayFields = [];
+      const priority = ['Name', 'CreatedDate', 'Id'];
+      priority.forEach(p => {
+        if (fields.find(f => f.name === p)) displayFields.push(p);
+      });
+      for (const f of fields) {
+        if (displayFields.length >= 5) break;
+        if (!displayFields.includes(f.name) && f.type !== 'textarea') displayFields.push(f.name);
+      }
+      
+      const thHtml = displayFields.map(f => `<th style="padding: 12px; text-align: left; background: #f3f2f1; border-bottom: 2px solid #dddbda; color: #444; font-size: 0.8rem; font-weight: 700;">${escapeHtml(f)}</th>`).join('');
+      const trHtml = records.map(r => {
+        const tds = displayFields.map(f => `<td style="padding: 12px; border-bottom: 1px solid #dddbda; font-size: 0.9rem; color: #181818;">${escapeHtml(r[f] || '-')}</td>`).join('');
+        return `<tr>${tds}</tr>`;
+      }).join('');
+      
+      tableHtml = `
+        <div style="background: #fff; border: 1px solid #dddbda; border-radius: 4px; overflow: hidden; margin-top: 20px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead><tr>${thHtml}</tr></thead>
+            <tbody>${trHtml}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    const detailBody = pageDetailContent.querySelector('.detail-body');
+    detailBody.innerHTML = `
+      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <div style="background: #fff; border: 1px solid #dddbda; padding: 16px; border-radius: 4px; flex: 1;">
+          <div style="color: #444; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">PREFIX</div>
+          <div style="font-size: 1.25rem; font-weight: 700;">${escapeHtml(item.keyPrefix || '-')}</div>
+        </div>
+        <div style="background: #fff; border: 1px solid #dddbda; padding: 16px; border-radius: 4px; flex: 1;">
+          <div style="color: #444; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">CHAMPS</div>
+          <div style="font-size: 1.25rem; font-weight: 700;">${fields.length}</div>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 1.1rem; font-weight: 700; color: #181818; margin: 0;">Enregistrements récents</h3>
+        ${hasRecords ? `
+        <button id="btnSyncSfmc" style="background: #0176d3; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+          Synchroniser
+        </button>` : ''}
+      </div>
+      ${tableHtml}
+    `;
+
+    const btnSync = $('btnSyncSfmc');
+    if (btnSync) {
+      btnSync.onclick = async () => {
+        btnSync.disabled = true;
+        btnSync.style.opacity = '0.7';
+        btnSync.textContent = 'Synchronisation...';
+        try {
+          const res = await sendMsg('SYNC_SF_CORE_TO_SFMC', {
+            objectName: item.key,
+            fields: fields,
+            records: records
+          });
+          btnSync.style.background = '#4bca81';
+          btnSync.style.opacity = '1';
+          btnSync.textContent = 'Synchronisé !';
+        } catch (err) {
+          btnSync.style.background = '#ea001e';
+          btnSync.style.opacity = '1';
+          btnSync.textContent = 'Erreur';
+          alert(err.message);
+        }
+      };
+    }
+
+  } catch (err) {
+    pageDetailContent.querySelector('.detail-body').innerHTML = `<div style="color: #ea001e; font-weight: 700;">Erreur: ${err.message}</div>`;
+  }
+}
 
 // ─── Limits Dashboard Logic ────────────────────────────────────────────────
 

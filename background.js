@@ -22,8 +22,17 @@ import {
   fetchDataExtensionFields,
   deleteDataExtension,
   updateDataRetention,
-  fetchDataExtensionsWithUsage
+  fetchDataExtensionsWithUsage,
+  getDataExtensionByName,
+  createDataExtension,
+  insertDataExtensionRecords
 } from './api.js';
+
+import { 
+  fetchSalesforceCoreObjects,
+  describeSalesforceObject,
+  fetchSalesforceObjectRecentRecords
+} from './api-core.js';
 
 import { isConfigured, clearCredentials } from './auth.js';
 import { callAI } from './ai.js';
@@ -98,6 +107,42 @@ async function handleMessage(message) {
         case 'users': return fetchUsersDetails();
         default: throw new Error(`Unknown category: \${category}`);
       }
+    }
+    
+    case 'FETCH_SF_CORE_OBJECTS':
+      return fetchSalesforceCoreObjects();
+    
+    case 'FETCH_SF_CORE_OBJECT_DETAILS': {
+      const { objectName } = message;
+      const describe = await describeSalesforceObject(objectName);
+      const fields = describe.fields;
+      const data = await fetchSalesforceObjectRecentRecords(objectName, fields);
+      return { fields, records: data.records };
+    }
+
+    case 'SYNC_SF_CORE_TO_SFMC': {
+      const { objectName, fields, records } = message;
+      
+      const creds = await getCoreCredentials();
+      const folderId = creds?.folderId || null;
+      
+      let de = await getDataExtensionByName(objectName);
+      let customerKey;
+      
+      if (!de) {
+        const res = await createDataExtension(objectName, fields, folderId);
+        customerKey = res.customerKey;
+      } else {
+        customerKey = de.customerKey;
+      }
+      
+      const insertRes = await insertDataExtensionRecords(customerKey, records);
+      return { 
+        success: true, 
+        customerKey, 
+        inserted: records.length, 
+        statusMessage: de ? "Synchronisé avec la Data Extension existante" : "Nouvelle Data Extension créée et synchronisée" 
+      };
     }
     
     case 'FETCH_USERS_DETAILS':
