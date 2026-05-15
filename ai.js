@@ -22,7 +22,21 @@ import {
   fetchDataExtensionFields,
   fetchAutomationById,
   fetchJourneyById,
+  fetchAutomationAnnualVolume,
+  fetchJourneyVersions,
+  fetchJourneyHistory,
+  getDataExtensionByName,
+  createDataExtension,
+  insertDataExtensionRecords,
 } from './api.js';
+
+import {
+  fetchSalesforceCoreObjects,
+  describeSalesforceObject,
+  fetchSalesforceObjectRecentRecords,
+} from './api-core.js';
+
+import { getClientConfig, SFMC_TIERS, calculateUsage } from './limits.js';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL          = 'claude-haiku-4-5-20251001';
@@ -121,6 +135,108 @@ const TOOLS = [
       required: ['id'],
     },
   },
+  {
+    name: 'get_license_usage',
+    description:
+      'Read the configured license tier and compare current SFMC usage against contract limits. ' +
+      'Returns tier name, limits per dimension (contacts, Super Messages, storage, automations, API calls, users), ' +
+      'current values, usage %, and status (ok / warning / critical). ' +
+      'ALWAYS call this when the user asks about license, capacity, headroom, usage %, over-quota, or contract limits.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_automation_volume',
+    description:
+      'Calculate the projected total number of automation executions over the next 12 months ' +
+      'based on scheduled automations and their iCal frequencies. ' +
+      'Call this when the user asks about automation volume, projected executions, or license consumption for automations.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_journey_versions',
+    description:
+      'List all published versions of a Journey, sorted newest first. ' +
+      'Call list_items(journeys) first to find the journey key, then call this to get version history.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'The journey key (the stable identifier across all versions)' },
+      },
+      required: ['key'],
+    },
+  },
+  {
+    name: 'get_journey_history',
+    description:
+      'Get the last 10 execution history entries for a Journey: start time, end time, status, contacts processed. ' +
+      'Useful for diagnosing why a journey ran or did not run at expected times. ' +
+      'Use the journey key or definitionId from list_items(journeys).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        definitionId: { type: 'string', description: 'The journey definitionId or key' },
+      },
+      required: ['definitionId'],
+    },
+  },
+  {
+    name: 'describe_sf_core_object',
+    description:
+      'Get the complete field schema of one Salesforce Core object WITHOUT syncing it to SFMC. ' +
+      'Returns field names, labels, types, required flags, and lookup relationships. ' +
+      'Call this when the user wants to inspect the structure of an SF Core object before deciding to sync.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        objectApiName: { type: 'string', description: 'Exact Salesforce Core API name (e.g. Account, Article__c)' },
+      },
+      required: ['objectApiName'],
+    },
+  },
+  {
+    name: 'get_sf_core_records',
+    description:
+      'Fetch the 10 most recent records from a Salesforce Core object WITHOUT syncing to SFMC. ' +
+      'Returns sample rows with their field values so the user can preview the data. ' +
+      'Call this when the user wants to see what data is in a specific SF Core object.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        objectApiName: { type: 'string', description: 'Exact Salesforce Core API name' },
+      },
+      required: ['objectApiName'],
+    },
+  },
+  {
+    name: 'list_sf_core_objects',
+    description:
+      'List ALL Salesforce Core objects available for sync into SFMC. ' +
+      'Returns EVERY custom object (those ending in __c) plus the first 50 standard objects. ' +
+      'Use this to check if a specific object exists, list what custom objects the user has, ' +
+      'or resolve a display name to its API name before syncing. ' +
+      'IMPORTANT: if the user mentions a specific object (e.g. Article__c), call this tool first — ' +
+      'do NOT explain what custom objects are without checking the actual data.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'sync_sf_core_to_sfmc',
+    description:
+      'WRITE OPERATION — sync a Salesforce Core object into SFMC. ' +
+      'This creates (or reuses) a Data Extension in SFMC with the object\'s field schema, ' +
+      'then inserts the 10 most recent records from Salesforce Core. ' +
+      'MANDATORY: always obtain explicit user confirmation before calling this tool. ' +
+      'Announce the object name and what will happen, then wait for the user to say yes/oui/confirme.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        objectApiName: {
+          type: 'string',
+          description: 'The exact Salesforce Core API name of the object (e.g. Account, Contact, Lead, Opportunity, MyObject__c)',
+        },
+      },
+      required: ['objectApiName'],
+    },
+  },
 ];
 
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -132,9 +248,31 @@ Every answer you give must be grounded in data returned by your tools — never 
 
 ## Core rules
 
+**Never hallucinate. Ever.**
+Every number, name, status, date, and field you report MUST come from a tool result in this conversation.
+If a tool returned it → you can say it. If no tool returned it → you cannot say it.
+Do NOT invent plausible-sounding names, counts, or statuses. Do NOT extrapolate from training knowledge.
+If you are unsure whether something is real: call the relevant tool. If the tool returns nothing: say so.
+
 **Always fetch before answering.**
 Never say "I don't have that information" or "I cannot access" before calling at least one tool.
 Pick the tool(s) that cover the question, call them, then answer from the actual results.
+
+**When the question is ambiguous — ask, don't guess.**
+If you cannot identify the exact intent (wrong spelling, vague phrasing, multiple possible interpretations),
+do NOT attempt an answer. Instead, reply with:
+1. One short sentence acknowledging what you understood ("Je pense que tu veux savoir…")
+2. A numbered list of 2–4 concrete choices that cover the most likely intents
+3. "Réponds avec le numéro de ton choix." (or English equivalent if the user wrote in English)
+
+Examples of ambiguity to detect:
+- "les autos" → could mean automations count, automations in error, scheduled automations, or annual volume
+- "synchronise tout" → which SF Core objects? ask before syncing
+- "le journey" without a name → ask which journey (and offer to list them)
+- "mon espace" → storage usage? or something else?
+
+Do NOT ask for clarification if the intent is reasonably clear (even with typos).
+Do NOT over-qualify obvious questions with "did you mean?" when there's only one sensible interpretation.
 
 **Be precise with numbers.**
 When reporting counts: state the exact number from the data. When data is partially unavailable
@@ -161,6 +299,14 @@ Intent mapping examples:
 - "détails de l'auto [nom]" → list_items(automations) to find id, then get_automation_details(id)
 - "les journeys en draft" → list_items(journeys), filter meta = "Draft"
 - "les DEs sans rétention" → list_items(data-ext), filter deleteAtEnd = "false" or empty
+- "ma licence / mon contrat / mes limites" → get_license_usage
+- "est-ce que je suis proche de la limite ?" → get_license_usage, highlight any warning/critical dims
+- "volume d'automations / combien d'exécutions" → get_automation_volume
+- "les versions du journey [nom]" → list_items(journeys) for key, then get_journey_versions(key)
+- "historique du journey [nom]" → list_items(journeys) for key, then get_journey_history(key)
+- "les champs de l'objet SF Core [nom]" → describe_sf_core_object(apiName)
+- "montre-moi les données de [objet SF Core]" → get_sf_core_records(apiName)
+- "rapport complet" → get_overview + get_license_usage + list_items(automations) + list_items(journeys)
 
 **Call multiple tools per turn when needed.**
 For cross-category questions ("rapport complet", "état de l'instance", "anomalies") call get_overview
@@ -246,6 +392,28 @@ schedule (iCal rrule), steps/activities array, lastRunTime, nextRunTime, created
 activities array (each step with type and config), triggers, goals with performance stats,
 stats.currentPopulation (active contacts), stats.cumulativePopulation.
 
+**get_license_usage** returns:
+\`{ tier, clientName, limits: {contacts, superMessages, storage, automations, api, users},
+  usage: { contacts: {current, limit, percent, status, remaining}, automations: {...}, users: {...}, storage?: {...} } }\`
+status: "ok" = <80%, "warning" = 80–99%, "critical" = ≥100%.
+If no tier is configured, result.note explains that onboarding is needed.
+
+**get_automation_volume** returns:
+\`{ projected_annual_executions: number }\`
+Counts only scheduled (statusId 6), ready (2), and running (3) automations with an iCal schedule.
+
+**get_journey_versions(key)** returns:
+\`{ total, versions: [{ version, status, createdDate, modifiedDate, lastPublishedDate }] }\`
+
+**get_journey_history(definitionId)** returns:
+\`{ total, entries: [...] }\` — last 10 execution history events for the journey.
+
+**describe_sf_core_object(objectApiName)** returns:
+\`{ apiName, label, labelPlural, custom, fieldsCount, fields: [{ name, label, type, required, isLookup, referenceTo }] }\`
+
+**get_sf_core_records(objectApiName)** returns:
+\`{ objectApiName, totalRecords, records: [...] }\` — up to 10 most recent records with their field values.
+
 ## Date arithmetic
 Today's date is always provided in the user message as \`current_date: YYYY-MM-DD\`.
 Use it for all expiry, age, and recency calculations.
@@ -260,8 +428,57 @@ Use it for all expiry, age, and recency calculations.
 - Never output raw JSON or XML. Translate field names to human-readable labels.
 - When data is unavailable for some items (403, network error): say how many were affected and why, then continue with available data.
 
+## Salesforce Core ↔ SFMC Sync
+
+You have two tools to bridge Salesforce Core data into SFMC:
+
+**list_sf_core_objects** — Read-only. Lists ALL custom objects and first 50 standard objects.
+Returns a "customObjects" array (all custom objects) and a "standardObjects" array (first 50 standard) with apiName and label.
+Call this whenever the user mentions a specific SF Core object by name or asks what's available.
+
+**sync_sf_core_to_sfmc(objectApiName)** — Write operation.
+Fetches the object schema and 10 most recent records from Salesforce Core,
+then creates or updates a matching Data Extension in SFMC and inserts the records.
+
+### Strict tool-first rule for SF Core questions
+
+**NEVER answer a question about a specific SF Core object without first calling list_sf_core_objects.**
+If the user asks about "Article__c", "MyObject__c", or any named object:
+1. Call list_sf_core_objects immediately
+2. Search the "customObjects" array for the exact apiName or a close match
+3. If found: report what you found (label, apiName, type) then proceed
+4. If NOT found: say exactly this pattern:
+   "J'ai cherché dans les [N] objets disponibles ([X] custom, [Y] standard) et je n'ai pas trouvé d'objet correspondant à '[name]'.
+   Cela peut signifier : (1) l'objet n'est pas visible avec les permissions actuelles, (2) son API name est différent de ce que tu as saisi, ou (3) il n'existe pas encore dans cet org.
+   Pour vérifier : Settings → Object Manager dans Salesforce Core."
+
+**NEVER give a generic explanation of what custom objects are.**
+The user knows what custom objects are — they work with Salesforce daily.
+Your job is to tell them what IS in their specific org, not explain Salesforce concepts.
+
+### Mandatory sync flow — never skip steps
+
+1. If the user hasn't given an exact API name, call list_sf_core_objects first to find it.
+2. Announce clearly: object label, API name, what will be created in SFMC.
+3. **Ask for explicit confirmation** ("Confirmes-tu la synchronisation ?") — do NOT call sync_sf_core_to_sfmc yet.
+4. Only call sync_sf_core_to_sfmc after the user replies with yes / oui / confirme / go / ok or equivalent.
+5. Report the result: DE status (created or existing), fields count, records inserted.
+
+### Sync intent examples
+- "synchronise Account vers SFMC" → list_sf_core_objects, announce plan, ask confirmation, then sync
+- "crée une DE depuis l'objet Contact" → same flow
+- "quels objets SF Core sont disponibles ?" → list_sf_core_objects, report the customObjects list prominently
+- "sync Lead et Opportunity" → handle each object separately with its own confirmation step
+- "est-ce que j'ai un objet Article__c ?" → list_sf_core_objects, search customObjects, report exactly what was found or not
+
+### Sync result fields
+sync_sf_core_to_sfmc returns:
+\`{ success, objectApiName, customerKey, fieldsCount, recordsInserted, deStatus ("created"|"updated"), message }\`
+Report deStatus, fieldsCount and recordsInserted clearly to the user after each sync.
+
 ## Hard constraints
-- READ-ONLY. Never suggest creating, modifying, or deleting anything in SFMC.
+- For pure SFMC analysis: read-only. Never create, modify, or delete SFMC assets unprompted.
+- The ONLY write action allowed is sync_sf_core_to_sfmc, and ONLY after explicit user confirmation.
 - Never invent, estimate, or extrapolate numbers — only report what the tools returned.
 - Zero Data Retention: no user data, names, or counts are stored beyond this session.
 - If a tool returns an error object ({ error: "..." }), acknowledge the failure, explain it in plain terms, and answer as far as possible with the data you do have.`;
@@ -356,6 +573,176 @@ async function executeTool(name, input, uiContext) {
 
     case 'get_journey_details':
       return fetchJourneyById(input.id);
+
+    case 'get_license_usage': {
+      const config = await getClientConfig();
+      const client = config.clients?.[0];
+      const tierKey = client?.tier || 'unknown';
+      const tierDef = SFMC_TIERS[tierKey];
+      const limits = tierDef?.limits || {};
+
+      const m = await fetchAllMetrics(false);
+      const dims = {
+        contacts:    { current: m.contacts    ?? 0, limit: limits.contacts    ?? 0 },
+        automations: { current: m.automations ?? 0, limit: limits.automations ?? 0 },
+        users:       { current: m.users       ?? 0, limit: limits.users       ?? 0 },
+      };
+
+      const result = {
+        tier:       tierDef?.name || tierKey,
+        clientName: client?.name  || 'Non configuré',
+        limits,
+        usage:      {},
+      };
+
+      for (const [dim, val] of Object.entries(dims)) {
+        const calc = calculateUsage(val.current, val.limit);
+        result.usage[dim] = {
+          current:   val.current,
+          limit:     val.limit,
+          percent:   calc.percent,
+          status:    calc.status,
+          remaining: calc.remaining,
+        };
+      }
+
+      if (client?.manualStorageGb !== undefined) {
+        const calc = calculateUsage(client.manualStorageGb, limits.storage ?? 0);
+        result.usage.storage = {
+          current:   client.manualStorageGb,
+          limit:     limits.storage ?? 0,
+          percent:   calc.percent,
+          status:    calc.status,
+          remaining: calc.remaining,
+        };
+      }
+
+      if (!client) {
+        result.note = 'No license tier configured. Ask the user to complete onboarding in the Limits section.';
+      }
+
+      return result;
+    }
+
+    case 'get_automation_volume': {
+      const annualTotal = await fetchAutomationAnnualVolume();
+      return { projected_annual_executions: annualTotal };
+    }
+
+    case 'get_journey_versions': {
+      const versions = await fetchJourneyVersions(input.key);
+      return {
+        total: versions.length,
+        versions: versions.map(v => ({
+          version:           v.version,
+          status:            v.status,
+          createdDate:       v.createdDate,
+          modifiedDate:      v.modifiedDate,
+          lastPublishedDate: v.lastPublishedDate,
+        })),
+      };
+    }
+
+    case 'get_journey_history': {
+      const history = await fetchJourneyHistory(input.definitionId);
+      return { total: history.length, entries: history };
+    }
+
+    case 'describe_sf_core_object': {
+      const describe = await describeSalesforceObject(input.objectApiName);
+      const fields = (describe.fields || []).map(f => ({
+        name:        f.name,
+        label:       f.label,
+        type:        f.type,
+        required:    !f.nillable && !f.defaultedOnCreate,
+        isLookup:    f.type === 'reference',
+        referenceTo: f.referenceTo || [],
+      }));
+      return {
+        apiName:     describe.name,
+        label:       describe.label,
+        labelPlural: describe.labelPlural,
+        custom:      describe.custom,
+        fieldsCount: fields.length,
+        fields,
+      };
+    }
+
+    case 'get_sf_core_records': {
+      const describe = await describeSalesforceObject(input.objectApiName);
+      const fields   = describe.fields || [];
+      const data     = await fetchSalesforceObjectRecentRecords(input.objectApiName, fields);
+      return {
+        objectApiName: input.objectApiName,
+        totalRecords:  data.records?.length ?? 0,
+        records:       data.records ?? [],
+      };
+    }
+
+    case 'list_sf_core_objects': {
+      const objects = await fetchSalesforceCoreObjects();
+      const toMap = o => ({
+        label:   o.name,
+        apiName: o.key,
+        type:    o.custom ? 'Custom' : 'Standard',
+        prefix:  o.keyPrefix || '—',
+      });
+      const customObjects   = objects.filter(o =>  o.custom).map(toMap);
+      const standardAll     = objects.filter(o => !o.custom);
+      const standardObjects = standardAll.slice(0, 50).map(toMap);
+      const result = {
+        total:         objects.length,
+        totalCustom:   customObjects.length,
+        totalStandard: standardAll.length,
+        customObjects,
+        standardObjects,
+      };
+      if (standardAll.length > 50) {
+        result.note = `All ${customObjects.length} custom objects are listed. Showing first 50 of ${standardAll.length} standard objects.`;
+      }
+      return result;
+    }
+
+    case 'sync_sf_core_to_sfmc': {
+      const { objectApiName } = input;
+
+      // Fetch schema from Salesforce Core
+      const describe = await describeSalesforceObject(objectApiName);
+      const fields = describe.fields || [];
+
+      // Fetch recent records (capped at 25 fields per our api-core fix)
+      const data = await fetchSalesforceObjectRecentRecords(objectApiName, fields);
+      const records = data.records || [];
+
+      // Create or reuse the SFMC Data Extension
+      const existing = await getDataExtensionByName(objectApiName);
+      let customerKey;
+      const isNew = !existing;
+
+      if (isNew) {
+        const res = await createDataExtension(objectApiName, fields, null);
+        customerKey = res.customerKey;
+      } else {
+        customerKey = existing.customerKey;
+      }
+
+      // Insert records
+      if (records.length > 0) {
+        await insertDataExtensionRecords(customerKey, records);
+      }
+
+      return {
+        success:         true,
+        objectApiName,
+        customerKey,
+        fieldsCount:     fields.length,
+        recordsInserted: records.length,
+        deStatus:        isNew ? 'created' : 'updated',
+        message:         isNew
+          ? `Data Extension "${objectApiName}" créée avec ${fields.length} champs — ${records.length} enregistrement(s) inséré(s).`
+          : `Data Extension "${objectApiName}" existante — ${records.length} enregistrement(s) ajouté(s).`,
+      };
+    }
 
     default:
       return { error: `Unknown tool: ${name}` };

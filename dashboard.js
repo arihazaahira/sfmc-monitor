@@ -38,7 +38,9 @@ let currentCategory = 'journeys';
 let currentItemId = null;
 let allItems = [];
 let filteredItems = [];
-let aiMessages = [];
+let aiMessages    = [];
+let conversations = [];
+let activeConvId  = null;
 let lastCategoryItems = [];
 
 // ─── DOM Refs ───────────────────────────────────────────────────────────────
@@ -144,7 +146,7 @@ async function switchCategory(cat) {
   } else if (cat === 'data-ext') {
     await renderDataExtensionsOverview();
   } else if (cat === 'ai') {
-    renderAIView();
+    await renderAIView();
   } else if (cat === 'sf-core') {
     await loadSfCoreData();
   } else {
@@ -1512,9 +1514,150 @@ function showToast(msg, duration = 3000) {
     }
 }
 
+// ─── Conversation Management ─────────────────────────────────────────────────
+
+async function loadConversations() {
+  const data = await chrome.storage.local.get('sfmc_ai_conversations');
+  const saved = data.sfmc_ai_conversations || [];
+  conversations = saved.filter(c => c && c.id && Array.isArray(c.messages));
+  if (conversations.length === 0) {
+    _createConversation();
+  } else {
+    conversations.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    activeConvId = conversations[0].id;
+    aiMessages = [...conversations[0].messages];
+  }
+}
+
+function _createConversation() {
+  const id = 'conv_' + Date.now();
+  const conv = { id, name: 'Nouvelle conversation', messages: [], updatedAt: Date.now() };
+  conversations.unshift(conv);
+  activeConvId = id;
+  aiMessages = [];
+  return conv;
+}
+
+function newConversation() {
+  _persistActiveMessages();
+  _createConversation();
+  _persistToStorage();
+  renderAIView();
+}
+
+function switchConversation(id) {
+  if (id === activeConvId) return;
+  _persistActiveMessages();
+  activeConvId = id;
+  const conv = conversations.find(c => c.id === id);
+  aiMessages = conv ? [...conv.messages] : [];
+  renderAIView();
+}
+
+function deleteConversation(id) {
+  if (conversations.length <= 1) {
+    const conv = conversations[0];
+    if (conv) { conv.messages = []; conv.name = 'Nouvelle conversation'; conv.updatedAt = Date.now(); }
+    aiMessages = [];
+    _persistToStorage();
+    renderAIView();
+    return;
+  }
+  conversations = conversations.filter(c => c.id !== id);
+  if (activeConvId === id) {
+    activeConvId = conversations[0].id;
+    aiMessages = [...conversations[0].messages];
+  }
+  _persistToStorage();
+  renderAIView();
+}
+
+function _persistActiveMessages() {
+  const conv = conversations.find(c => c.id === activeConvId);
+  if (conv) { conv.messages = [...aiMessages]; conv.updatedAt = Date.now(); }
+}
+
+function _persistToStorage() {
+  _persistActiveMessages();
+  chrome.storage.local.set({ sfmc_ai_conversations: conversations.slice(0, 15) });
+}
+
+function _nameConvFromQuestion(question) {
+  const conv = conversations.find(c => c.id === activeConvId);
+  if (conv && conv.name === 'Nouvelle conversation' && question) {
+    conv.name = question.substring(0, 38).trim() + (question.length > 38 ? '…' : '');
+  }
+}
+
+function _refreshConvSidebar() {
+  const list = $('aiConvList');
+  if (!list) return;
+  list.innerHTML = conversations.map(conv => {
+    const isActive = conv.id === activeConvId;
+    const hasMessages = conv.messages.length > 0;
+    const lastMsg = hasMessages ? conv.messages[conv.messages.length - 1] : null;
+    const preview = lastMsg
+      ? escapeHtml(lastMsg.content.substring(0, 28)) + '…'
+      : '<span style="color:var(--text-muted);font-style:italic">Vide</span>';
+    return `
+      <div class="ai-conv-item${isActive ? ' active' : ''}" data-conv-id="${conv.id}" title="${escapeHtml(conv.name)}">
+        <div class="ai-conv-item-body">
+          <div class="ai-conv-item-name">${escapeHtml(conv.name)}</div>
+          <div class="ai-conv-item-preview">${preview}</div>
+        </div>
+        <button class="ai-conv-item-del" data-del-id="${conv.id}" title="Supprimer">×</button>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.ai-conv-item').forEach(item => {
+    item.onclick = (e) => {
+      if (e.target.classList.contains('ai-conv-item-del')) return;
+      switchConversation(item.dataset.convId);
+    };
+  });
+  list.querySelectorAll('.ai-conv-item-del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteConversation(btn.dataset.delId);
+    };
+  });
+}
+
+function _buildConvSidebarHTML() {
+  const items = conversations.map(conv => {
+    const isActive = conv.id === activeConvId;
+    const hasMessages = conv.messages.length > 0;
+    const preview = hasMessages
+      ? escapeHtml(conv.messages[conv.messages.length - 1].content.substring(0, 28)) + '…'
+      : '<span style="color:var(--text-muted);font-style:italic">Vide</span>';
+    return `
+      <div class="ai-conv-item${isActive ? ' active' : ''}" data-conv-id="${conv.id}" title="${escapeHtml(conv.name)}">
+        <div class="ai-conv-item-body">
+          <div class="ai-conv-item-name">${escapeHtml(conv.name)}</div>
+          <div class="ai-conv-item-preview">${preview}</div>
+        </div>
+        <button class="ai-conv-item-del" data-del-id="${conv.id}" title="Supprimer">×</button>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="ai-conv-sidebar">
+      <div class="ai-conv-sidebar-header">
+        <span class="ai-conv-sidebar-title">Conversations</span>
+        <button class="ai-new-conv-btn" id="aiNewConvBtn">+ Nouveau</button>
+      </div>
+      <div class="ai-conv-list" id="aiConvList">${items}</div>
+    </div>`;
+}
+
 // ─── AI Chat View ────────────────────────────────────────────────────────────
 
-function renderAIView() {
+async function renderAIView() {
+  // Load conversations on first render
+  if (conversations.length === 0 && !activeConvId) {
+    await loadConversations();
+  }
+
   pageTabs.innerHTML = '';
   breadcrumbDetail.textContent = 'Assistant';
   viewTitle.textContent = 'AI Assistant';
@@ -1525,15 +1668,21 @@ function renderAIView() {
 
   pageListContainer.innerHTML = `
     <div class="ai-view">
-      <div class="ai-messages" id="aiMessages">${historyHTML}</div>
-      <div class="ai-input-row">
-        <textarea class="ai-textarea" id="aiInput" placeholder="Ask anything about your SFMC instance… (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
-        <button class="ai-send-btn" id="aiSendBtn" title="Send">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
+      ${_buildConvSidebarHTML()}
+      <div class="ai-main">
+        <div class="ai-messages" id="aiMessages">${historyHTML}</div>
+        <div class="ai-input-row">
+          <div class="ai-input-wrap">
+            <textarea class="ai-textarea" id="aiInput" placeholder="Posez votre question sur l'instance SFMC… (Entrée pour envoyer, Maj+Entrée pour saut de ligne)" rows="1"></textarea>
+            <div class="ai-input-hint">Entrée pour envoyer · Maj+Entrée pour nouvelle ligne</div>
+          </div>
+          <button class="ai-send-btn" id="aiSendBtn" title="Envoyer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -1543,6 +1692,21 @@ function renderAIView() {
     const msgs = $('aiMessages');
     msgs.scrollTop = msgs.scrollHeight;
   }
+
+  // Conversation sidebar handlers
+  $('aiNewConvBtn').onclick = () => newConversation();
+  document.querySelectorAll('.ai-conv-item').forEach(item => {
+    item.onclick = (e) => {
+      if (e.target.classList.contains('ai-conv-item-del')) return;
+      switchConversation(item.dataset.convId);
+    };
+  });
+  document.querySelectorAll('.ai-conv-item-del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteConversation(btn.dataset.delId);
+    };
+  });
 
   // Suggestion pill handlers
   pageListContainer.querySelectorAll('.ai-suggestion-btn').forEach(btn => {
@@ -1572,35 +1736,76 @@ function renderAIView() {
 }
 
 function buildAIWelcomeHTML() {
+  const suggestions = [
+    { label: 'Rapport de santé', desc: 'Chiffres clés + anomalies détectées', icon: '📊',
+      q: 'Rapport de santé complet : donne-moi les chiffres clés de l\'instance (contacts, DEs, automations, journeys, users) et signale toutes les anomalies détectées.' },
+    { label: 'Audit automations', desc: 'Erreurs, statuts, prochaines exécutions', icon: '⚡',
+      q: 'Quelles automations sont en erreur (statut 0 ou -1) ? Liste leurs noms. Y a-t-il des automations en cours d\'exécution ou en pause ?' },
+    { label: 'Rétention des DEs', desc: 'Expirations et DEs sans politique', icon: '🗄️',
+      q: 'Quelles Data Extensions ont une rétention active (deleteAtEnd = true) ? Lesquelles expirent dans les 90 prochains jours ? Lesquelles n\'ont aucune politique de rétention ?' },
+    { label: 'Audit utilisateurs', desc: 'Comptes API, inactifs et suspects', icon: '👥',
+      q: 'Liste tous les utilisateurs API (isApi = true). Liste aussi les utilisateurs désactivés (active = false). Y a-t-il des comptes suspects ?' },
+    { label: 'Journeys actifs', desc: 'Contacts en cours et journeys vides', icon: '🗺️',
+      q: 'Quels journeys sont actifs (Executing) en ce moment ? Combien de contacts sont en cours ? Y a-t-il des journeys en Executing mais sans contacts ?' },
+    { label: 'Licence & limites', desc: 'Usage vs contrat, alertes de capacité', icon: '📋',
+      q: 'Quel est mon tier de licence ? Affiche mon usage actuel vs les limites contractuelles et signale tout ce qui approche du seuil.' },
+    { label: 'Sync Salesforce Core', desc: 'Explorer et synchroniser des objets SF', icon: '🔄',
+      q: 'Quels objets Salesforce Core sont disponibles pour la synchronisation ?' },
+  ];
+
+  const pillsHTML = suggestions.map(s => `
+    <button class="ai-suggestion-btn" data-q="${escapeHtml(s.q)}">
+      <span class="s-label">${s.icon} ${s.label}</span>
+      <span class="s-desc">${s.desc}</span>
+    </button>`).join('');
+
   return `
     <div class="ai-welcome">
-      <div class="ai-welcome-icon">✨</div>
+      <div class="ai-welcome-icon">✦</div>
       <h3>SFMC AI Assistant</h3>
-      <p>Ask questions about your instance in natural language.<br>
-         For best results, open the relevant tab first so the AI can see the full item list.</p>
-      <div class="ai-suggestions">
-        <button class="ai-suggestion-btn" data-q="Rapport de santé complet : donne-moi les chiffres clés de l'instance (contacts, DEs, automations, journeys, users) et signale toutes les anomalies détectées.">Rapport de santé</button>
-        <button class="ai-suggestion-btn" data-q="Quelles automations sont en erreur (statut 0 ou -1) ? Liste leurs noms. Y a-t-il des automations en cours d'exécution ou en pause ?">Audit automations</button>
-        <button class="ai-suggestion-btn" data-q="Quelles Data Extensions ont une rétention active (deleteAtEnd = true) ? Lesquelles expirent dans les 90 prochains jours ? Lesquelles n'ont aucune politique de rétention ?">Rétention des DEs</button>
-        <button class="ai-suggestion-btn" data-q="Liste tous les utilisateurs API (isApi = true). Liste aussi les utilisateurs désactivés (active = false). Y a-t-il des comptes suspects ?">Audit utilisateurs</button>
-        <button class="ai-suggestion-btn" data-q="Quels journeys sont actifs (Executing) en ce moment ? Combien de contacts sont en cours ? Y a-t-il des journeys en Executing mais sans contacts ?">Journeys actifs</button>
-        <button class="ai-suggestion-btn" data-q="Quelles sont les automations planifiées (scheduledTime renseigné) ? Donne leurs noms et prochaine heure d'exécution.">Automations planifiées</button>
-      </div>
+      <p>Posez vos questions en langage naturel. L'agent interroge directement votre instance SFMC et Salesforce Core en temps réel.</p>
+      <div class="ai-suggestions">${pillsHTML}</div>
     </div>
   `;
 }
 
 function buildAIMessageHTML(role, content, isThinking = false) {
-  const avatarEmoji = role === 'user' ? '👤' : '✨';
-  const bubbleContent = isThinking
-    ? `<div class="ai-thinking-dots"><span></span><span></span><span></span></div>`
-    : renderMarkdown(content);
+  if (role === 'user') {
+    return `
+      <div class="ai-message-row user">
+        <div class="ai-bubble">${escapeHtml(content).replace(/\n/g, '<br>')}</div>
+      </div>`;
+  }
+
+  // Assistant — thinking state
+  if (isThinking) {
+    return `
+      <div class="ai-message-row assistant">
+        <div class="ai-thinking-card">
+          <div class="ai-thinking-pulse">✦</div>
+          <div class="ai-thinking-text">
+            <div class="ai-thinking-label">Analyse de l'instance en cours…</div>
+            <div class="ai-thinking-bar"></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Assistant — full response card
+  const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   return `
-    <div class="ai-message-row ${role}">
-      <div class="ai-avatar ${role}">${avatarEmoji}</div>
-      <div class="ai-bubble ${role}">${bubbleContent}</div>
-    </div>
-  `;
+    <div class="ai-message-row assistant">
+      <div class="ai-response-card">
+        <div class="ai-response-header">
+          <div class="ai-response-badge">✦</div>
+          <div class="ai-response-meta">
+            <span class="ai-response-name">SFMC Assistant</span>
+            <span class="ai-response-time">${now}</span>
+          </div>
+        </div>
+        <div class="ai-bubble assistant">${renderMarkdown(content)}</div>
+      </div>
+    </div>`;
 }
 
 async function submitAIQuestion() {
@@ -1647,18 +1852,18 @@ async function submitAIQuestion() {
   const welcome = messagesEl.querySelector('.ai-welcome');
   if (welcome) welcome.remove();
 
+  // Name the conversation from the first question
+  _nameConvFromQuestion(question);
+
   // Append user bubble
   aiMessages.push({ role: 'user', content: question });
   messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('user', question));
 
   // Append thinking indicator
   const thinkingId = 'ai-thinking-' + Date.now();
-  messagesEl.insertAdjacentHTML('beforeend', `
-    <div id="${thinkingId}" class="ai-message-row assistant">
-      <div class="ai-avatar assistant">✨</div>
-      <div class="ai-bubble assistant"><div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>
-    </div>
-  `);
+  messagesEl.insertAdjacentHTML('beforeend',
+    `<div id="${thinkingId}">${buildAIMessageHTML('assistant', '', true)}</div>`
+  );
   messagesEl.scrollTop = messagesEl.scrollHeight;
 
   try {
@@ -1687,16 +1892,26 @@ async function submitAIQuestion() {
     document.getElementById(thinkingId)?.remove();
     aiMessages.push({ role: 'assistant', content: reply });
     messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('assistant', reply));
+    _persistToStorage();
+    _refreshConvSidebar();
 
   } catch (err) {
     document.getElementById(thinkingId)?.remove();
     const errMsg = resolveAIError(err.message);
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     messagesEl.insertAdjacentHTML('beforeend', `
       <div class="ai-message-row assistant">
-        <div class="ai-avatar assistant">✨</div>
-        <div class="ai-bubble assistant"><span class="ai-error-msg">${errMsg}</span></div>
-      </div>
-    `);
+        <div class="ai-response-card">
+          <div class="ai-response-header">
+            <div class="ai-response-badge">✦</div>
+            <div class="ai-response-meta">
+              <span class="ai-response-name">SFMC Assistant</span>
+              <span class="ai-response-time">${now}</span>
+            </div>
+          </div>
+          <div class="ai-bubble assistant"><span class="ai-error-msg">${errMsg}</span></div>
+        </div>
+      </div>`);
   } finally {
     sendBtn.disabled = false;
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -1735,8 +1950,13 @@ function renderMarkdown(text) {
   // Italic
   html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
 
-  // Headers → bold lines
-  html = html.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
+  // Horizontal rules
+  html = html.replace(/^---+$/gm, '<hr>');
+
+  // Headers → h2 / h3 / bold
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^# (.+)$/gm, '<strong>$1</strong>');
 
   // Markdown tables — must run before bullet list processing
   html = html.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
@@ -1779,7 +1999,7 @@ function renderMarkdown(text) {
   html = blocks.map(block => {
     block = block.trim();
     if (!block) return '';
-    if (/^<(ul|ol|pre|table|h[1-6])/.test(block)) return block;
+    if (/^<(ul|ol|pre|table|h[1-6]|hr)/.test(block)) return block;
     return `<p>${block.replace(/\n/g, '<br>')}</p>`;
   }).join('');
 

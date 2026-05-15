@@ -56,7 +56,22 @@ function showToast(msg, type = 'info', duration = 3500) {
 function setConnStatus(state, text) {
   connStatus.className = `conn-status ${state}`;
   connText.textContent = text;
+  if (state === 'ok') showLaunchBanner();
 }
+
+// ─── Launch Dashboard banner ──────────────────────────────────────────────────
+
+const launchBanner = document.getElementById('launchBanner');
+
+function showLaunchBanner() {
+  launchBanner.classList.add('visible');
+  document.body.classList.add('has-banner');
+}
+
+document.getElementById('btnLaunchDashboard').addEventListener('click', () => {
+  const url = chrome.runtime.getURL('dashboard.html');
+  chrome.tabs.create({ url });
+});
 
 // ─── Subdomain sanitizer ─────────────────────────────────────────────────────
 
@@ -120,19 +135,28 @@ async function loadSavedCredentials() {
 
   fldSubdomain.value = creds.subdomain || '';
   fldClientId.value = creds.clientId || '';
-  // NEVER re-populate the secret field — show placeholder only
   fldSecret.placeholder = creds.clientSecret
     ? '••••••••  (saved — enter new value to change)'
     : '••••••••••••••••••••••••••••••••';
 
-  // Update subdomain preview
   if (creds.subdomain) {
     subdomainPreview.textContent = `REST: https://${creds.subdomain}.rest.marketingcloudapis.com`;
     subdomainPreview.className = 'subdomain-preview active';
   }
 
   btnTest.disabled = false;
-  setConnStatus('', 'Credentials saved');
+
+  // If credentials are fully set, silently test the token to show the launch banner
+  if (creds.subdomain && creds.clientId && creds.clientSecret) {
+    try {
+      await getAccessToken();
+      setConnStatus('ok', 'Connected ✓');
+    } catch (_) {
+      setConnStatus('', 'Credentials saved');
+    }
+  } else {
+    setConnStatus('', 'Credentials saved');
+  }
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────

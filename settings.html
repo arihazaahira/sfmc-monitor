@@ -487,6 +487,94 @@
     .spin {
       animation: spin 0.8s linear infinite;
     }
+
+    /* ─── Launch Dashboard CTA ───────────────────────────────────────────── */
+    #launchBanner {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #5b5bd6, #4f46e5);
+      padding: 18px 48px;
+      z-index: 200;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      box-shadow: 0 -4px 24px rgba(91, 91, 214, 0.25);
+      animation: slideUpBanner 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    #launchBanner.visible {
+      display: flex;
+    }
+
+    @keyframes slideUpBanner {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .launch-banner-text {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #fff;
+    }
+
+    .launch-banner-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+      flex-shrink: 0;
+      animation: pulseGreen 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { box-shadow: 0 0 10px rgba(74, 222, 128, 0.8); }
+      50%       { box-shadow: 0 0 20px rgba(74, 222, 128, 1); }
+    }
+
+    .launch-banner-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .launch-banner-sub {
+      font-size: 0.8rem;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+
+    .btn-launch {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      background: #fff;
+      color: #4f46e5;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    /* push page content above the fixed banner when visible */
+    body.has-banner {
+      padding-bottom: 90px;
+    }
   </style>
 </head>
 
@@ -745,6 +833,27 @@
     </div>
 
   </div><!-- /page -->
+
+  <!-- Launch Dashboard Banner -->
+  <div id="launchBanner" role="complementary" aria-live="polite">
+    <div class="launch-banner-text">
+      <div class="launch-banner-dot"></div>
+      <div>
+        <div class="launch-banner-title">Connexion établie — vous êtes prêt !</div>
+        <div class="launch-banner-sub">SFMC connecté · Credentials sauvegardés</div>
+      </div>
+    </div>
+    <button class="btn-launch" id="btnLaunchDashboard">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      Ouvrir le Dashboard
+    </button>
+  </div>
 
   <!-- Toast -->
   <div id="toast" role="alert" aria-live="polite"></div>
