@@ -1539,6 +1539,30 @@ th {
 
 .ai-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
 
+.ai-propose-btn {
+  flex-shrink: 0;
+  align-self: flex-end;
+  padding: 0 16px;
+  height: 50px;
+  background: var(--surface);
+  border: 1.5px solid var(--primary-mid, #a78bfa);
+  border-radius: 15px;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.ai-propose-btn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(91,91,214,0.18);
+}
+
 /* ─── Spin animation (shared) ────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.9s linear infinite; }

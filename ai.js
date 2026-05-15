@@ -258,21 +258,29 @@ If you are unsure whether something is real: call the relevant tool. If the tool
 Never say "I don't have that information" or "I cannot access" before calling at least one tool.
 Pick the tool(s) that cover the question, call them, then answer from the actual results.
 
-**When the question is ambiguous — ask, don't guess.**
-If you cannot identify the exact intent (wrong spelling, vague phrasing, multiple possible interpretations),
-do NOT attempt an answer. Instead, reply with:
-1. One short sentence acknowledging what you understood ("Je pense que tu veux savoir…")
-2. A numbered list of 2–4 concrete choices that cover the most likely intents
-3. "Réponds avec le numéro de ton choix." (or English equivalent if the user wrote in English)
+**When the question is ambiguous — STOP and ask. Never guess.**
+A query is ambiguous when it is a single word, a very short phrase, or has multiple plausible interpretations.
+Do NOT call any tool. Do NOT attempt an answer. Instead reply with:
+1. One short sentence: "Ta question peut vouloir dire plusieurs choses :"
+2. A numbered list of 3–5 concrete choices, each with a short action description
+3. "Réponds avec le numéro de ton choix."
 
-Examples of ambiguity to detect:
-- "les autos" → could mean automations count, automations in error, scheduled automations, or annual volume
-- "synchronise tout" → which SF Core objects? ask before syncing
-- "le journey" without a name → ask which journey (and offer to list them)
-- "mon espace" → storage usage? or something else?
+Queries that ALWAYS require clarification (never proceed directly):
+- Single words: "état", "autos", "journeys", "users", "DEs", "résumé", "rapport", "infos", "bilan", "check"
+- Short phrases with no specific target: "les autos", "les journeys", "les users", "c'est quoi", "dis-moi"
+- Vague scope: "montre-moi tout", "donne-moi les infos", "c'est comment", "synchronise tout"
+- Any query where you could reasonably produce 3+ different reports
 
-Do NOT ask for clarification if the intent is reasonably clear (even with typos).
-Do NOT over-qualify obvious questions with "did you mean?" when there's only one sensible interpretation.
+Examples of correct clarification responses:
+- "état" → "Ta question peut vouloir dire plusieurs choses : 1. État général de l'instance (chiffres clés) 2. État des automations (erreurs, planifiées, en cours) 3. État des journeys (actifs, en draft, vides) 4. État des Data Extensions (rétention, expirations) 5. Rapport de santé complet. Réponds avec le numéro de ton choix."
+- "les autos" → "Ta question peut vouloir dire : 1. Combien d'automations au total 2. Lesquelles sont en erreur 3. Lesquelles sont planifiées et quand 4. Volume annuel projeté d'exécutions. Réponds avec le numéro."
+- "synchronise tout" → "Quel objet Salesforce Core veux-tu synchroniser ? 1. Account 2. Contact 3. Lead 4. Un autre objet (précise lequel). Réponds avec le numéro."
+
+Do NOT ask for clarification when the intent is specific and unambiguous:
+- "combien d'automations en erreur" → clear, proceed
+- "liste les journeys actifs" → clear, proceed
+- "le schéma de la DE [nom]" → clear, proceed
+- "rapport de santé complet" → clear, proceed (user explicitly asked for everything)
 
 **Be precise with numbers.**
 When reporting counts: state the exact number from the data. When data is partially unavailable
@@ -280,9 +288,9 @@ When reporting counts: state the exact number from the data. When data is partia
 Never round or approximate silently.
 
 **Handle imprecise or multilingual questions.**
-Users write in French, English, Arabic, or a mix, and may phrase questions imprecisely.
-Identify the underlying intent. If your interpretation is not obvious, state it in one short sentence
-("Je comprends que tu veux…") then proceed immediately — do NOT wait for confirmation.
+Users write in French, English, Arabic, or a mix.
+If the intent is clear despite typos or mixed language → proceed directly.
+If the intent is unclear or has multiple plausible meanings → apply the ambiguity rule above: stop and ask.
 
 Intent mapping examples:
 - "combien d'autos en erreur" → list_items(automations), count statusId 0 or -1
@@ -689,7 +697,7 @@ async function executeTool(name, input, uiContext) {
       });
       const customObjects   = objects.filter(o =>  o.custom).map(toMap);
       const standardAll     = objects.filter(o => !o.custom);
-      const standardObjects = standardAll.slice(0, 50).map(toMap);
+      const standardObjects = standardAll.slice(0, 200).map(toMap);
       const result = {
         total:         objects.length,
         totalCustom:   customObjects.length,
@@ -697,8 +705,8 @@ async function executeTool(name, input, uiContext) {
         customObjects,
         standardObjects,
       };
-      if (standardAll.length > 50) {
-        result.note = `All ${customObjects.length} custom objects are listed. Showing first 50 of ${standardAll.length} standard objects.`;
+      if (standardAll.length > 200) {
+        result.note = `All ${customObjects.length} custom objects are listed. Showing first 200 of ${standardAll.length} standard objects.`;
       }
       return result;
     }

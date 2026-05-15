@@ -1672,6 +1672,9 @@ async function renderAIView() {
       <div class="ai-main">
         <div class="ai-messages" id="aiMessages">${historyHTML}</div>
         <div class="ai-input-row">
+          <button class="ai-propose-btn" id="aiProposeBtn" title="Laisser l'agent proposer des actions">
+            ✦ Proposer
+          </button>
           <div class="ai-input-wrap">
             <textarea class="ai-textarea" id="aiInput" placeholder="Posez votre question sur l'instance SFMC… (Entrée pour envoyer, Maj+Entrée pour saut de ligne)" rows="1"></textarea>
             <div class="ai-input-hint">Entrée pour envoyer · Maj+Entrée pour nouvelle ligne</div>
@@ -1732,6 +1735,13 @@ async function renderAIView() {
   });
 
   $('aiSendBtn').onclick = submitAIQuestion;
+
+  $('aiProposeBtn').onclick = () => {
+    const input = $('aiInput');
+    input.value = '__propose__';
+    submitAIQuestion();
+  };
+
   textarea.focus();
 }
 
@@ -1808,10 +1818,15 @@ function buildAIMessageHTML(role, content, isThinking = false) {
     </div>`;
 }
 
+const PROPOSE_PROMPT = `Propose-moi en français une liste de 6 analyses concrètes que tu peux faire sur mon instance SFMC et Salesforce Core en ce moment. Présente chaque option sous forme numérotée avec une icône, un titre court en gras, et une phrase d'explication. Termine par : "Réponds avec le numéro de ton choix, ou pose ta question directement."`;
+
 async function submitAIQuestion() {
   const input = $('aiInput');
-  const question = input.value.trim();
+  let question = input.value.trim();
   if (!question) return;
+
+  const isPropose = question === '__propose__';
+  if (isPropose) question = PROPOSE_PROMPT;
 
   const sendBtn = $('aiSendBtn');
   input.value = '';
@@ -1853,11 +1868,12 @@ async function submitAIQuestion() {
   if (welcome) welcome.remove();
 
   // Name the conversation from the first question
-  _nameConvFromQuestion(question);
+  _nameConvFromQuestion(isPropose ? 'Propositions de l\'agent' : question);
 
-  // Append user bubble
+  // Append user bubble (show friendly label for propose mode)
+  const displayQuestion = isPropose ? '✦ Que peux-tu faire pour moi ?' : question;
   aiMessages.push({ role: 'user', content: question });
-  messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('user', question));
+  messagesEl.insertAdjacentHTML('beforeend', buildAIMessageHTML('user', displayQuestion));
 
   // Append thinking indicator
   const thinkingId = 'ai-thinking-' + Date.now();
