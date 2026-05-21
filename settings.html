@@ -62,7 +62,7 @@
 
     /* ─── Top nav bar ─────────────────────────────────────────────────────── */
     .topbar {
-      background: var(--bg-card);
+      background: linear-gradient(135deg, var(--bg-card) 0%, #f5f3ff 100%);
       border-bottom: 1px solid var(--border-dark);
       padding: 0 48px;
       height: 72px;
@@ -72,6 +72,7 @@
       position: sticky;
       top: 0;
       z-index: 10;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 
     .topbar-brand {
@@ -83,15 +84,21 @@
     .topbar-logo {
       width: 44px;
       height: 44px;
-      background: var(--accent);
+      background: linear-gradient(135deg, #a78bfa, var(--accent));
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 22px;
       flex-shrink: 0;
-      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
+      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.25);
       color: white;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+    }
+
+    .topbar-logo:hover {
+      transform: scale(1.06) rotate(-3deg);
+      box-shadow: 0 10px 24px rgba(99, 102, 241, 0.35);
     }
 
     .topbar-title {
@@ -184,16 +191,19 @@
     .card {
       background: var(--bg-card);
       border: 1.5px solid var(--border-dark);
+      border-left: 4px solid var(--accent-mid);
       border-radius: var(--radius-lg);
       padding: 40px;
       margin-bottom: 32px;
       box-shadow: var(--shadow-sm);
-      transition: all var(--transition);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .card:hover {
       border-color: var(--accent);
+      border-left-color: var(--accent);
       box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
     }
 
     .card-title {
@@ -256,7 +266,8 @@
     input[type="password"]:focus {
       border-color: var(--accent);
       background: #FFFFFF;
-      box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.08);
+      box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.12);
+      transform: translateY(-1px);
     }
 
     input::placeholder {
@@ -337,7 +348,7 @@
       align-items: center;
       gap: 12px;
       padding: 14px 32px;
-      background: var(--accent);
+      background: linear-gradient(135deg, #a78bfa, var(--accent));
       border: none;
       border-radius: var(--radius-sm);
       color: white;
@@ -345,8 +356,8 @@
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
-      transition: all var(--transition);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
 
     .btn-save:hover:not(:disabled) {
@@ -433,11 +444,11 @@
     }
 
     #toast.success {
-      background: var(--success);
+      background: linear-gradient(135deg, #10b981, #059669);
     }
 
     #toast.error {
-      background: var(--danger);
+      background: linear-gradient(135deg, #ef4444, #dc2626);
     }
 
     #toast.info {
@@ -583,7 +594,11 @@
   <!-- Top Bar -->
   <nav class="topbar">
     <div class="topbar-brand">
-      <div class="topbar-logo">☁️</div>
+      <div class="topbar-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5S20 10 17.5 10c-.5-4-4.5-6.5-8.5-5S1.5 8.5 2 12.5C.5 13 0 14 0 15.5 0 17.5 2 19 4.5 19h13z"/>
+        </svg>
+      </div>
       <div>
         <div class="topbar-title">SFMC Dashboard</div>
         <div class="topbar-sub">Extension Settings</div>

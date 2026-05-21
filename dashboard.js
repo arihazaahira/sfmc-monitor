@@ -350,9 +350,10 @@ function renderList(items) {
   `;
 
   const tbody = pageListContainer.querySelector('#list-tbody');
-  items.forEach(item => {
+  items.forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.className = 'table-row';
+    tr.style.animationDelay = `${index * 30}ms`;
     
     let displayMeta = item.meta || '-';
     if (currentCategory === 'automations') {
@@ -388,7 +389,7 @@ async function selectItem(id) {
   // Show details
   pageDetailSection.classList.add('visible');
   pageDetailContent.classList.remove('hidden'); // Fix: ensure the content wrapper is visible
-  pageDetailContent.innerHTML = '<div class="loading-box"><div class="spinner"></div><span>Chargement...</span></div>';
+  pageDetailContent.innerHTML = '<div class="loading-box"><div class="spinner"></div><span>Chargement des détails…</span></div>';
 
   try {
     if (currentCategory === 'journeys') {
@@ -846,7 +847,26 @@ async function renderLimitsDashboard() {
           ${renderLimitCard('Data Extensions', stats.dataExtensions || 0, tier.limits.storage * 100, 'database', '', 'DEs est.')}
         </div>
 
-        <div class="detail-group">
+        <div class="detail-group" style="margin-top:40px">
+            <div class="detail-group-title">Analyse Comparative des Limites</div>
+            <div class="chart-container-premium">
+                <div class="chart-y-axis">
+                    <span>100%</span>
+                    <span>75%</span>
+                    <span>50%</span>
+                    <span>25%</span>
+                    <span>0%</span>
+                </div>
+                <div class="vertical-bar-chart">
+                    ${renderVerticalBar('Contacts', stats.contacts || 0, tier.limits.contacts)}
+                    ${renderVerticalBar('Automations', annualAutomations, tier.limits.automations)}
+                    ${renderVerticalBar('Users', stats.users || 0, tier.limits.users)}
+                    ${renderVerticalBar('DEs', stats.dataExtensions || 0, tier.limits.storage * 100)}
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-group" style="margin-top:24px">
             <div class="detail-group-title">Configuration</div>
             <div style="display:flex; gap:12px">
                 <button class="btn-sidebar-refresh" id="btnEditConfig" style="max-width:200px">
@@ -901,6 +921,21 @@ function renderLimitCard(title, usage, limit, icon, unit = '', subtext = 'restan
           <span class="limit-remaining">${limit === 0 ? '' : formatNumber(analysis.remaining) + ' ' + subtext}</span>
         </div>
       </div>
+    </div>
+  `;
+}
+
+function renderVerticalBar(label, usage, limit) {
+  const analysis = calculateUsage(usage, limit);
+  const percent = Math.min(analysis.percent, 100);
+  
+  return `
+    <div class="chart-column">
+      <div class="bar-wrapper">
+        <div class="bar-value-tooltip">${analysis.percent}%</div>
+        <div class="bar-fill-vertical status-${analysis.status}" style="height: ${percent}%"></div>
+      </div>
+      <div class="bar-label">${label}</div>
     </div>
   `;
 }
@@ -1073,9 +1108,10 @@ function renderFilteredDEList(type) {
         return;
     }
 
-    items.forEach(item => {
+    items.forEach((item, index) => {
         const tr = document.createElement('tr');
         tr.className = 'table-row';
+        tr.style.animationDelay = `${index * 30}ms`;
         const eName  = escapeHtml(item.name);
         const eKey   = escapeHtml(item.key);
         const eCatId = escapeHtml(item.categoryId || '0');
